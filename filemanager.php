@@ -186,7 +186,7 @@ class filemanager extends rcube_plugin
 
         // Kelola Klien — hanya untuk manager (DISCUSS.md #5)
         if ($this->is_manager()) {
-            $out .= '<li><a href="' . rcube::Q('?_task=filemanager&amp;_action=clients')
+            $out .= '<li><a href="' . rcube::Q('?_task=filemanager&_action=clients')
                 . '"><i class="fa fa-users"></i><span class="inner">'
                 . rcube::Q($this->gettext('manageclients'))
                 . '</span></a></li>';
