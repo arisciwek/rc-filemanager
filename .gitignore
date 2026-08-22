@@ -1,0 +1,7 @@
+# Konfigurasi asli + credential — jangan pernah di-commit
+config.inc.php
+
+# File sistem / cadangan lokal
+*.bak
+*.swp
+.DS_Store

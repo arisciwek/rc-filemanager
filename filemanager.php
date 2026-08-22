@@ -9,17 +9,21 @@
  * - Taskbar menu
  * - Localization
  * - Icon
- * - Blank template
+ * - Halaman engine TinyFileManager (iframe)
  *
  * Struktur direktori:
  *   filemanager/
  *   ├── filemanager.php              -> Kelas plugin utama (file ini)
  *   ├── filemanager_ui.php           -> Handler UI (taskbar button & stylesheet)
- *   ├── localization/                -> Terjemahan label (en_US, id_ID)
+ *   ├── config.inc.php.dist          -> Template konfigurasi (credential klien)
+ *   ├── lib/
+ *   │   ├── tinyfilemanager.php      -> Engine TinyFileManager v2.6 (stock)
+ *   │   ├── config.php               -> Override config engine (dibaca otomatis)
+ *   │   └── translation.json         -> Terjemahan engine
  *   └── skins/elastic/
  *       ├── filemanager.css          -> Style tombol taskmenu (ikon)
  *       ├── images/filemanager.png   -> Gambar ikon menu
- *       └── templates/minimal.html   -> Template halaman kosong
+ *       └── templates/filemanager.html -> Layout Elastic + iframe gateway
  *
  * @author     ArisCiwek
  * @copyright  GNU AGPL v3 or later
@@ -62,7 +66,11 @@ class filemanager extends rcube_plugin
     }
 
     /**
-     * Render blank filemanager page.
+     * Render halaman Filemanager (layout Elastic berisi iframe ke gateway).
+     *
+     * Gateway /filemanager.php yang menjalankan engine TinyFileManager:
+     * - sesi Roundcube valid  -> mode staff (SSO, tanpa login)
+     * - tanpa sesi Roundcube  -> mode klien (form login bawaan engine)
      */
     public function action_index()
     {
@@ -70,6 +78,6 @@ class filemanager extends rcube_plugin
             $this->gettext('filemanager.navtitle')
         );
 
-        $this->rc->output->send('filemanager.minimal');
+        $this->rc->output->send('filemanager.filemanager');
     }
 }

@@ -17,4 +17,4 @@
 
 $labels = [];
 
-$labels['navtitle'] = 'Filemanager';
+$labels['navtitle'] = 'Berkas';

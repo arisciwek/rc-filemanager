@@ -1,0 +1,113 @@
+<?php
+/**
+ * Roundcube Webmail — Filemanager Plugin
+ *
+ * File    : /plugins/filemanager/config.inc.php.dist
+ * Path    : /var/www/roundcube/plugins/filemanager/config.inc.php.dist
+ *
+ * TEMPLATE konfigurasi. Salin menjadi config.inc.php lalu isi nilai aslinya:
+ *
+ *     cp config.inc.php.dist config.inc.php
+ *
+ * FILE INI (dan config.inc.php) TIDAK DILAYANI WEB — DocumentRoot instalasi
+ * adalah public_html/, sehingga plugins/ tidak bisa diakses langsung.
+ * config.inc.php berisi credential klien dan WAJIB tidak di-commit.
+ *
+ * Dipakai oleh gateway /var/www/roundcube/public_html/filemanager.php:
+ * - MODE STAFF : kunci 'staff_base' + 'staff_readonly'
+ * - MODE KLIEN : kunci 'clients' (username => hash bcrypt + path chroot)
+ *
+ * Generate hash password:
+ *     php -r "echo password_hash('password-anda', PASSWORD_BCRYPT);"
+ *
+ * @author     ArisCiwek
+ * @copyright  GNU AGPL v3 or later
+ * @license    GNU AGPL v3 or later
+ * @package    Filemanager
+ */
+
+$config = [];
+
+/*
+ * ------------------------------------------------------------------
+ * STAFF — user Roundcube yang login lewat tombol taskbar.
+ * Chroot masing-masing ke <staff_base>/<local-part-email>.
+ * Contoh: operation@ciptamasjaya.co.id -> /mnt/files/operation
+ *
+ * Folder harus SUDAH ADA (mount point terpisah per user) — plugin
+ * tidak membuat folder otomatis; user tanpa folder akan ditolak 403.
+ * ------------------------------------------------------------------
+ */
+$config['staff_base'] = '/mnt/files';
+
+// Local-part email staff yang hanya boleh melihat (read-only).
+$config['staff_readonly'] = [
+    // 'sales',
+];
+
+/*
+ * ------------------------------------------------------------------
+ * KLIEN — tanpa akun Roundcube. Login via form bawaan TinyFileManager
+ * di https://<domain>/filemanager.php, chroot ke 'path' masing-masing.
+ * Klien tidak dapat melihat folder klien lain maupun naik ke atas path-nya.
+ *
+ * Contoh:
+ *   $config['clients']['klienA'] = [
+ *       'hash'     => '$2y$10$...........',  // wajib
+ *       'path'     => '/mnt/files/operation/klienA',  // wajib, harus ada
+ *       'readonly' => false,                 // opsional, default false
+ *   ];
+ *
+ * Alur kerja: staff membuat folder klien lewat UI file manager,
+ * lalu admin menambahkan entri di sini.
+ * ------------------------------------------------------------------
+ */
+$config['clients'] = [
+
+    // 'klienA' => [
+    //     'hash'     => '$2y$10$GANTI.DENGAN.HASH.ASLI',
+    //     'path'     => '/mnt/files/operation/klienA',
+    //     'readonly' => false,
+    // ],
+
+];
+
+/*
+ * ------------------------------------------------------------------
+ * OPSI UMUM engine TinyFileManager (kedua mode).
+ * ------------------------------------------------------------------
+ */
+$config['opts'] = [
+
+    // Zona waktu untuk tampilan tanggal file
+    'timezone' => 'Asia/Jakarta',
+
+    // Batas ukuran upload total (byte). Harus <= upload_max_filesize &
+    // post_max_size di php.ini
+    'max_upload_bytes' => 5000000000,
+
+    // Ukuran chunk upload (byte). Kecilkan jika nginx/proxy memberi 413.
+    'upload_chunk' => 2000000,
+
+    // Filter ekstensi. Kosong = semua. Contoh: 'jpg,png,pdf,docx,xlsx'
+    'allowed_upload_extensions' => '',
+    'allowed_file_extensions'   => '',
+
+    // File/folder disembunyikan dari daftar
+    'exclude_items' => [],
+
+    // Viewer dokumen online: 'google' | 'microsoft' | false
+    'online_viewer' => false,
+
+    // State UI engine (dibaca FM_Config): lang, theme, show_hidden,
+    // hide_Cols, error_reporting
+    'ui' => [
+        'lang'        => 'id',      // kode tersedia di lib/translation.json
+        'theme'       => 'light',   // light | dark
+        'show_hidden' => false,
+        'hide_Cols'   => true,
+    ],
+];
+
+// WAJIB: agar @include di gateway & lib/config.php mendapatkan array ini
+return $config;
