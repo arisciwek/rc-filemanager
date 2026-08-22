@@ -3751,31 +3751,38 @@ function fm_show_nav_path($path)
     global $lang, $sticky_navbar, $editFile;
     $isStickyNavBar = $sticky_navbar ? 'fixed-top' : '';
 ?>
+    <!-- [LOCAL PATCH rc-filemanager] Breadcrumb dikeluarkan dari <nav>
+         agar selalu terlihat (tidak ikut tersembunyi di dalam collapse
+         navbar saat iframe sempit) dan menjadi baris tersendiri di atas
+         navbar. RE-APPLY patch ini setelah overwrite tinyfilemanager.php
+         dengan versi TFM baru. -->
+    <div class="fm-pathbar d-flex align-items-center flex-wrap gap-1 px-3 py-2 bg-body-tertiary border-bottom" data-bs-theme="<?php echo FM_THEME; ?>">
+        <?php
+        $path = fm_clean_path($path);
+        $root_url = "<a href='?p='><i class='fa fa-home' aria-hidden='true' title='" . FM_ROOT_PATH . "'></i></a>";
+        $sep = '<i class="bread-crumb"> / </i>';
+        if ($path != '') {
+            $exploded = explode('/', $path);
+            $count = count($exploded);
+            $array = array();
+            $parent = '';
+            for ($i = 0; $i < $count; $i++) {
+                $parent = trim($parent . '/' . $exploded[$i], '/');
+                $parent_enc = urlencode($parent);
+                $array[] = "<a href='?p={$parent_enc}'>" . fm_enc(fm_convert_win($exploded[$i])) . "</a>";
+            }
+            $root_url .= $sep . implode($sep, $array);
+        }
+        echo '<div class="breadcrumb col-xs-6 col-sm-5">' . $root_url . $editFile . '</div>';
+        ?>
+    </div>
+    <!-- [/LOCAL PATCH rc-filemanager] -->
     <nav class="navbar navbar-expand-lg mb-4 main-nav <?php echo $isStickyNavBar ?> bg-body-tertiary" data-bs-theme="<?php echo FM_THEME; ?>">
         <a class="navbar-brand"> <?php echo lng('AppTitle') ?> </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarSupportedContent">
-
-            <?php
-            $path = fm_clean_path($path);
-            $root_url = "<a href='?p='><i class='fa fa-home' aria-hidden='true' title='" . FM_ROOT_PATH . "'></i></a>";
-            $sep = '<i class="bread-crumb"> / </i>';
-            if ($path != '') {
-                $exploded = explode('/', $path);
-                $count = count($exploded);
-                $array = array();
-                $parent = '';
-                for ($i = 0; $i < $count; $i++) {
-                    $parent = trim($parent . '/' . $exploded[$i], '/');
-                    $parent_enc = urlencode($parent);
-                    $array[] = "<a href='?p={$parent_enc}'>" . fm_enc(fm_convert_win($exploded[$i])) . "</a>";
-                }
-                $root_url .= $sep . implode($sep, $array);
-            }
-            echo '<div class="col-xs-6 col-sm-5">' . $root_url . $editFile . '</div>';
-            ?>
 
             <div class="col-xs-6 col-sm-7">
                 <ul class="navbar-nav justify-content-end" data-bs-theme="<?php echo FM_THEME; ?>">

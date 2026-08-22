@@ -102,5 +102,21 @@ Implementasi:
 
 **Status:** ✅ selesai diimplementasikan (menunggu uji manual user)
 
+## 4. (2026-08-22) Kebijakan pemeliharaan engine TFM
+
+**Latar:** setelah LOCAL PATCH pertama (breadcrumb di luar `<nav>`), user
+bertanya apakah kita masih memakai file resmi TFM.
+
+**Keputusan (user):**
+- `lib/tinyfilemanager.php` adalah **milik plugin** — TIDAK akan ditimpa
+  file resmi TFM lagi.
+- Upgrade/adopsi dilakukan **manual & selektif**: hanya patch penting
+  (terutama security) yang diambil dari rilis TFM berikutnya.
+- Konsekuensi: risiko "patch hilang saat overwrite" praktis hilang;
+  penanda `[LOCAL PATCH rc-filemanager]` tetap dipertahankan sebagai
+  jejak untuk audit/manual-merge di masa depan.
+
+**Status:** ✅ diputuskan
+
 ---
 *(tambahkan topik diskusi berikutnya di bawah ini)*

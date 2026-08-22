@@ -219,3 +219,15 @@ Perbaikan:
 Verifikasi: node --check OK; static.php menyaji versi baru (ada
 DOMContentLoaded). CATATAN DEPLOY: aset di-cache browser ~1 bulan
 (ExpiresDefault) -> WAJIB hard refresh (Ctrl+Shift+R) setelah update.
+
+### Iterasi 3c — breadcrumb keluar dari <nav> (permintaan user)
+
+lib/tinyfilemanager.php diberi LOCAL PATCH bertanda komentar
+`[LOCAL PATCH rc-filemanager]`: blok breadcrumb dipindah ke atas <nav>
+sebagai baris sendiri (.fm-pathbar, bootstrap utilities). Alasan: di dalam
+.collapse.navbar-collapse, breadcrumb ikut tersembunyi saat iframe lebih
+sempit dari breakpoint lg. Menu kanan tetap di dalam collapse.
+
+PERHATIAN: sejak DISCUSS.md #4, file TFM tidak pernah ditimpa file resmi
+lagi (adopsi rilis baru manual & selektif). Penanda [LOCAL PATCH]
+dipertahankan untuk jejak audit saat manual-merge.
