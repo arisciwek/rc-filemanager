@@ -95,3 +95,99 @@
 #filemanager-tree li.selected > .fm-row > a i.fa-folder:before {
     content: "\f07c"; /* fa-folder-open */
 }
+
+/* ===== Kelola Klien ===== */
+.fm-form label,
+.fm-form legend {
+    font-weight: 700;
+    margin-top: 1rem;
+    display: block;
+}
+
+.fm-form input[type="text"] {
+    width: 100%;
+    max-width: 640px;
+}
+
+.fm-pwd-row {
+    display: flex;
+    gap: .5rem;
+    align-items: center;
+    max-width: 640px;
+}
+
+.fm-pwd-row input {
+    flex: 1;
+}
+
+.fm-check {
+    font-weight: 400 !important;
+    margin: .35rem 0;
+}
+
+.fm-shares {
+    border: 1px solid #d8dde3;
+    border-radius: .3rem;
+    padding: .5rem 1rem;
+    margin-top: 1rem;
+    max-width: 640px;
+}
+
+.fm-badge {
+    font-size: .72rem;
+    border-radius: 999px;
+    padding: 0 .55rem;
+    margin-left: .4rem;
+    white-space: nowrap;
+}
+
+.fm-badge.ok {
+    background: rgba(64, 156, 82, .15);
+    color: #2e7d43;
+}
+
+.fm-badge.new {
+    background: rgba(233, 160, 22, .18);
+    color: #a86b00;
+}
+
+.fm-actions {
+    margin-top: 1.25rem;
+    display: flex;
+    gap: .75rem;
+    align-items: center;
+}
+
+.fm-note,
+.fm-hint {
+    color: #6c757d;
+    font-size: .9rem;
+}
+
+.fm-muted {
+    color: #adb5bd;
+}
+
+.fm-clients-table {
+    width: 100%;
+    margin-top: .75rem;
+    border-collapse: collapse;
+}
+
+.fm-clients-table th,
+.fm-clients-table td {
+    text-align: left;
+    padding: .45rem .6rem;
+    border-bottom: 1px solid #e9ecef;
+    vertical-align: top;
+}
+
+.fm-clients-table td.fm-path {
+    word-break: break-all;
+    font-family: monospace;
+    font-size: .85em;
+}
+
+form.fm-inline {
+    display: inline;
+}

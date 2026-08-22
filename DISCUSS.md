@@ -118,5 +118,42 @@ bertanya apakah kita masih memakai file resmi TFM.
 
 **Status:** ✅ diputuskan
 
+## 5. (2026-08-22) Client management: CRUD UI untuk admin non-developer
+
+**Permintaan:** staff admin (bukan developer) bisa create/edit/delete user
+klien: username, password, path tersedia; timestamp otomatis.
+
+**Realitas teknis:** TFM tak membaca store langsung — adapter
+lib/config.php menerjemahkan store → $auth_users/$directories_users,
+sehingga backend bebas dipilih tanpa menyentuh engine.
+
+**Opsi backend:**
+
+| | A. File PHP diperkuat | B. SQLite | C. MySQL RC |
+|---|---|---|---|
+| Dep baru | - | paket php-sqlite3 (belum terpasang) | parsing DSN utk skrip standalone |
+| Konkurensi | flock+rename | WAL | native |
+| Timestamp | key per entri | kolom | kolom |
+| Upaya | kecil | sedang | sedang-berat |
+
+Server terpasang: pdo_mysql ADA, pdo_sqlite TIDAK.
+
+**Keputusan backend (user):** pola SQL disetujui; dipilih **MySQL
+(low impact)** — infrastruktur sudah ada (driver + DSN Roundcube +
+backup rutin). SQLite ditolak (perlu paket baru = medium impact).
+Implementasi: tabel `filemanager_clients`; helper bersama
+`lib/store.php` membuka PDO via DSN dari config Roundcube sehingga
+gateway staff, entry klien standalone, dan UI CRUD memakai jalur akses
+yang sama. File config.inc.php untuk klien di-retire setelah UI jalan.
+
+**Keputusan:** ⏳ tersisa 3 poin:
+1. Gate izin pengelola: usulan key 'managers' di config (bukan semua staff)?
+2. Input path: absolut ber-prefix whitelist mount admin yg login vs dropdown?
+3. Form: readonly toggle + generate password + min length 8?
+
 ---
 *(tambahkan topik diskusi berikutnya di bawah ini)*
+
+**Status #5 — IMPLEMENTED (iterasi 4).** Pola MySQL terpilih; form memakai
+alur Pindai → centang tahun → Simpan. Gate `managers`; farm symlink;
+PDF auto-create; rename & hapus ikut merapikan farm.

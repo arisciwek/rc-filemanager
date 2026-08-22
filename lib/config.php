@@ -51,29 +51,54 @@ if (defined('FILEMANAGER_STAFF')) {
  * ------------------------------------------------------------------
  */
 elseif (defined('FILEMANAGER_CLIENTS_FILE')) {
-    $_cfg = is_readable(FILEMANAGER_CLIENTS_FILE) ? @include FILEMANAGER_CLIENTS_FILE : [];
-    if (!is_array($_cfg)) {
-        $_cfg = [];
-    }
+    /*
+     * Sumber kredensial: tabel MySQL filemanager_clients (DISCUSS.md #5)
+     * via fm_store (PDO, DSN dari config Roundcube). Farm symlink
+     * (.clients/<user>/) menyajikan banyak folder share per klien.
+     * FILEMANAGER_CLIENTS_FILE tetap didefinisikan gateway sebagai
+     * penanda mode klien; FILEMANAGER_CLIENTS_BASE = akar mount staf.
+     */
+    require_once __DIR__ . '/store.php';
+    require_once __DIR__ . '/farm.php';
 
-    // Kredensial klien: username => ['hash'=>bcrypt, 'path'=>chroot, 'readonly'=>bool]
     $auth_users        = [];
     $directories_users = [];
     $readonly_users    = [];
 
-    foreach ($_cfg['clients'] ?? [] as $_user => $_entry) {
-        if (!is_string($_user) || $_user === ''
-            || empty($_entry['hash']) || empty($_entry['path'])) {
+    try {
+        fm_store::ensure_table();
+        $_rows = fm_store::all();
+    } catch (Exception $_e) {
+        $_rows = []; // DB bermasalah: perlakukan seperti belum ada klien
+    }
+
+    $_base = defined('FILEMANAGER_CLIENTS_BASE')
+        ? rtrim((string) FILEMANAGER_CLIENTS_BASE, '/')
+        : '/mnt/files';
+
+    foreach ($_rows as $_row) {
+        $_user = (string) $_row['username'];
+        if ($_user === '' || empty($_row['hash'])) {
             continue;
         }
-        $_path = rtrim($_entry['path'], '/\\');
-        // Entri tanpa folder valid dilewati — tidak bisa login sama sekali.
-        if ($_path === '' || !is_dir($_path)) {
+        $_paths = json_decode((string) $_row['paths'], true);
+        if (!is_array($_paths) || !count($_paths)) {
             continue;
         }
-        $auth_users[$_user]        = $_entry['hash'];
-        $directories_users[$_user] = $_path;
-        if (!empty($_entry['readonly'])) {
+        $_farm = fm_farm::dir_for($_user, (string) $_row['home'], $_base);
+        if ($_farm === null) {
+            continue;
+        }
+        if (!is_dir($_farm)) {
+            // self-heal: farm hilang (mis. dibersihkan manual) — bangun ulang
+            @fm_farm::build($_user, (string) $_row['home'], $_paths, $_base);
+        }
+        if (!is_dir($_farm)) {
+            continue; // tak bisa disajikan -> tidak bisa login sama sekali
+        }
+        $auth_users[$_user]        = (string) $_row['hash'];
+        $directories_users[$_user] = $_farm;
+        if (!empty($_row['readonly'])) {
             $readonly_users[] = $_user;
         }
     }
@@ -108,7 +133,7 @@ elseif (defined('FILEMANAGER_CLIENTS_FILE')) {
     }
     $root_path = $_jail;
 
-    unset($_cfg, $_user, $_entry, $_path, $_jail);
+    unset($_rows, $_row, $_user, $_paths, $_farm, $_base, $_e, $_jail);
 }
 
 /*

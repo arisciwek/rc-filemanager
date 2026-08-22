@@ -111,13 +111,22 @@ Detail teknis lanjutan: lihat [PLAN.md](PLAN.md).
 
 ## Manajemen Klien
 
-1. Staff membuat folder klien lewat UI file manager (di mount-nya sendiri),
-   misal `operation/klienA`.
-2. Admin menambahkan entri klien baru di `plugins/filemanager/config.inc.php`
-   (username, hash bcrypt, path chroot, opsi readonly).
-3. Perubahan langsung efektif tanpa restart (dibaca per request).
-4. Menghapus entri klien = klien tersebut tidak bisa login lagi.
+Akun klien kini dikelola lewat **UI web** (menu `Kelola Klien` di sidebar,
+hanya tampil untuk staf yang masuk daftar `managers` di config plugin):
+
+1. Staff membuat struktur folder klien lewat UI file manager, mis.
+   `/mnt/files/operation/CMJ_2026/1. NAMA PERUSAHAAN/PT. CONTOH/`.
+2. Buka **Kelola Klien** → isi folder HOME → klik **Pindai** → centang
+   folder tahun yang ingin dibagikan (folder `PDF` di bawahnya dibuat
+   otomatis bila belum ada) → isi username/password → **Simpan**.
+3. Data akun disimpan di tabel MySQL `filemanager_clients` (dibuat
+   otomatis saat halaman pertama kali dibuka); penyajian multi-folder
+   memakai farm symlink `<mount>/.clients/<username>/`.
+4. Menghapus klien di UI = farm symlink ikut dibersihkan.
 5. Bagikan link **`https://<domain>/filemanager-client.php`** ke klien.
+
+Gate `managers`: key array di `config.inc.php` plugin; kosong = semua
+staf Roundcube boleh mengelola. Isi email atau local-part untuk membatasi.
 
 ## Persyaratan
 

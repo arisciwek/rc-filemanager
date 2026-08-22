@@ -231,3 +231,23 @@ sempit dari breakpoint lg. Menu kanan tetap di dalam collapse.
 PERHATIAN: sejak DISCUSS.md #4, file TFM tidak pernah ditimpa file resmi
 lagi (adopsi rilis baru manual & selektif). Penanda [LOCAL PATCH]
 dipertahankan untuk jejak audit saat manual-merge.
+
+## Iterasi 4 (2026-08-22) — manajemen klien CRUD (DISCUSS.md #5)
+
+Keputusan: pola SQL (MySQL via Roundcube db_dsnw, tabel `filemanager_clients`
+dibuat otomatis), farm symlink `<mount>/.clients/<username>/<tahun> -> PDF`,
+gate izin key `managers` di config plugin.
+
+Komponen:
+- `lib/store.php`  — PDO CRUD + ensure_table() (idempotent)
+- `lib/farm.php`   — build()/remove() farm symlink per username
+- `lib/config.php` — mode klien membaca DB; self-heal farm bila hilang
+- `filemanager.php`: action `clients` / `clients_save` / `clients_delete`,
+  gate `is_manager()`, CSRF token sesi (`request_token`),
+  alur Pindai→centang tahun→Simpan (folder `PDF` auto-create 2770)
+- template `clients.html`, label en/id, CSS halaman
+- shortcut sidebar `Kelola Klien` (fa-users) khusus manager
+
+Verifikasi: php -l semua file OK; anon `?_action=clients` → login page;
+gateway staff 302; entry klien menampilkan pesan "belum dikonfigurasi"
+saat tabel kosong.
