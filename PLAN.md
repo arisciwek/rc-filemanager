@@ -129,8 +129,12 @@ if (defined('FILEMANAGER_STAFF')) {
     browser folder jail kosong).
 - Instalasi lama `public_html/tinyfilemanager/` dihapus; backup lengkap ada
   di `/tmp/opencode/tinyfilemanager-backup`.
-- Catatan: masih ada folder lama `public_html/roundcube_filemanager/` dan repo
-  `plugins/filemanager-tiny/` (tidak aktif) — kandidat pembersihan berikutnya.
+- Artefak lama di public_html sudah dibersihkan (2026-08-22): folder klon
+  `tinyfilemanager/` dan `roundcube_filemanager/` dihapus (backup di
+  /tmp/opencode/*-backup). Yang tersisa hanya distribusi Roundcube
+  (index.php, installer.php, static.php, .htaccess) + gateway filemanager.php.
+  Repo lama `plugins/filemanager-tiny/` masih ada (tidak aktif) — kandidat
+  pembersihan berikutnya.
 
 ## 5. Verifikasi
 
