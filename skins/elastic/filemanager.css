@@ -18,3 +18,80 @@
     background-position: center;
     background-size: contain;
 }
+
+/*
+ * Sidebar — pohon folder (#filemanager-tree) + pintasan
+ * (#filemanager-shortcuts). Markup dibuat tpl_sidebar() (level 1) dan
+ * filemanager.js buildNode() (level lebih dalam, hasil AJAX).
+ */
+
+#layout-sidebar #filemanager-tree,
+#layout-sidebar #filemanager-shortcuts {
+    margin: 0;
+}
+
+#layout-sidebar #filemanager-shortcuts {
+    border-top: 1px solid rgba(0, 0, 0, .08);
+    margin-top: .25rem;
+}
+
+#filemanager-tree .fm-row {
+    display: flex;
+    align-items: center;
+}
+
+#filemanager-tree .fm-toggle {
+    flex: none;
+    width: 1.6rem;
+    padding: 0;
+    cursor: pointer;
+    text-align: center;
+    color: #9ea8b2; /* abu sekunder Elastic */
+}
+
+#filemanager-tree .fm-toggle:hover,
+#filemanager-tree li.selected > .fm-row > .fm-toggle {
+    color: inherit;
+}
+
+/* panah: angle-right saat tertutup, angle-down saat terbuka */
+#filemanager-tree .fm-node.fm-expanded > .fm-row > .fm-toggle i:before {
+    content: "\f107"; /* fa-angle-down */
+}
+#filemanager-tree .fm-node:not(.fm-expanded) > .fm-row > .fm-toggle i:before {
+    content: "\f105"; /* fa-angle-right */
+}
+#filemanager-tree li.fm-loading > .fm-row > .fm-toggle i:before {
+    content: "\f1ce"; /* fa-circle-o-notch */
+}
+#filemanager-tree li.fm-loading > .fm-row > .fm-toggle i {
+    animation: fm-spin 1s linear infinite;
+}
+
+@keyframes fm-spin {
+    to { transform: rotate(360deg); }
+}
+
+#filemanager-tree ul.fm-children {
+    display: none;
+    margin: 0;
+    padding-left: 1.15rem; /* indentasi bertingkat per level */
+    list-style: none;
+}
+
+#filemanager-tree .fm-expanded > ul.fm-children {
+    display: block;
+}
+
+/* highlight folder aktif (sinkron dengan iframe) */
+#filemanager-tree li.selected > .fm-row > a {
+    background-color: rgba(18, 52, 86, .08);
+}
+
+#filemanager-tree li.selected > .fm-row > a span.inner {
+    font-weight: 700;
+}
+
+#filemanager-tree li.selected > .fm-row > a i.fa-folder:before {
+    content: "\f07c"; /* fa-folder-open */
+}

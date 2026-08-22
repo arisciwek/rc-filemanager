@@ -16,16 +16,23 @@ Tampilan staff memakai layout Elastic tiga kolom:
 ```
 ┌──────────────┬─────────────────┬──────────────────────────┐
 │ layout-menu  │ layout-sidebar  │ layout-content           │
-│ Mail         │ Berkas Saya     │                          │
-│ Calendar     │ Dibagikan       │ TinyFileManager (iframe) │
-│ Contacts     │ Sampah          │                          │
-│ Files ←      │                 │                          │
-│ Settings     │                 │                          │
+│ Mail         │ ▾ Berkas Saya   │                          │
+│ Calendar     │   ├ klienA      │ TinyFileManager (iframe) │
+│ Contacts     │   └ klienB      │                          │
+│ Files ←      │ ─────────────   │                          │
+│ Settings     │ ⇗ Dibagikan     │                          │
+│              │ 🗑 Sampah        │                          │
 └──────────────┴─────────────────┴──────────────────────────┘
 ```
 
-Item sidebar hanya muncul bila foldernya ada (`shared`, `.trash`) dan membuka
-path tersebut di dalam iframe (atribut `target` HTML, tanpa JS).
+- **Pohon folder** (`#filemanager-tree`): level pertama dirender
+  server-side; level lebih dalam diambil via AJAX (`_action=tree`) saat
+  node dibuka (lazy-load). Node aktif di-*highlight* mengikuti folder
+  yang sedang ditampilkan iframe (navigasi dari pohon maupun dari dalam
+  engine).
+- **Pintasan** (`#filemanager-shortcuts`): Dibagikan & Sampah — hanya
+  muncul bila foldernya ada, terpisah dari pohon.
+- Klik item membuka path tersebut di dalam iframe (atribut `target`).
 
 ## Struktur Direktori
 

@@ -183,3 +183,39 @@ iframe) menunggu konfirmasi user.
   lalu admin menambah entri di `config.inc.php`. Otomatisasi UI manajemen
   klien = kandidat fase 2 (belum direncanakan).
 - Plugin lama `plugins/filemanager-tiny` dibiarkan (tidak aktif di config).
+
+## Iterasi 3 (2026-08-22) — pohon folder lazy-load + highlight (keputusan DISCUSS.md #3)
+
+Sidebar staf kini berisi:
+1. **Pohon folder** — level 1 server-side (tpl_sidebar/tree_nodes), level
+   lebih dalam via AJAX `?_task=filemanager&_action=tree&_folder=<rel>`
+   (JSON {name, path, has_children}). Guard: sesi Roundcube wajib,
+   safe_rel() + resolve_dir() realpath-chroot, limit 500 entri,
+   shared/.trash disembunyikan dari pohon (jadi pintasan terpisah).
+2. **Pintasan terpisah** Dibagikan/Sampah (#filemanager-shortcuts).
+3. **Highlight node aktif** — klik pohon langsung menandai; navigasi di
+   iframe membaca location.search (same-origin) lalu menandai + membuka
+   leluhur. CSS: panah toggle, indentasi, spinner, folder-open aktif.
+
+Aset JS/CSS plugin dilayani lewat `/static.php/plugins/<plugin>/...`
+(otomatis oleh resource_location() rcmail_output_html — URL /plugins/...
+langsung memang 404 di layout secure).
+
+Verifikasi: php -l OK; node --check OK; static.php js/css = 200;
+endpoint tree anonim = halaman login (JSON hanya sesi sah). Uji manual
+staff menunggu konfirmasi user.
+
+### Iterasi 3b — perbaikan pohon tidak berfungsi (laporan uji user)
+
+Gejala: level-1 tampil (CMJ_2026), tapi toggle lazy-load & highlight mati.
+Akar masalah: include_script() mencetak <script> di <head>; getElementById
+gagal (DOM belum siap) -> boot() keluar diam-diam, tak ada handler.
+Perbaikan:
+1. filemanager.js dibungkus boot() + tunggu DOMContentLoaded.
+2. Root li diberi data-loaded="1" (anak sudah server-side; cegah duplikat
+   saat collapse->expand).
+3. Folder titik (.cache/.AppleDouble/...) disembunyikan dari pohon,
+   konsisten hidden-files TFM; kini cukup 'shared' yang dikecualikan khusus.
+Verifikasi: node --check OK; static.php menyaji versi baru (ada
+DOMContentLoaded). CATATAN DEPLOY: aset di-cache browser ~1 bulan
+(ExpiresDefault) -> WAJIB hard refresh (Ctrl+Shift+R) setelah update.

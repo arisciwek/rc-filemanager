@@ -63,6 +63,9 @@ class filemanager extends rcube_plugin
         // Register default action for the filemanager task
         $this->register_action('index', [$this, 'action_index']);
 
+        // AJAX: daftar subfolder untuk pohon sidebar (lazy-load)
+        $this->register_action('tree', [$this, 'action_tree']);
+
         // Initialize UI
         $this->ui = new filemanager_ui($this);
         $this->ui->init();
@@ -70,7 +73,7 @@ class filemanager extends rcube_plugin
 
     /**
      * Render halaman Filemanager: layout Elastic tiga kolom
-     * (menu bawaan + sidebar pintasan folder + iframe engine).
+     * (menu bawaan + pohon folder di sidebar + iframe engine).
      *
      * Gateway /filemanager.php menjalankan engine TinyFileManager dalam
      * mode staff (SSO sesi Roundcube, tanpa form login). Pengunjung tanpa
@@ -84,10 +87,48 @@ class filemanager extends rcube_plugin
         // Nilai berisi "://" dilewati semua rewriter Roundcube.
         $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
             || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
-        $scheme   = $https ? 'https' : 'http';
-        $gateway  = $scheme . '://' . $_SERVER['HTTP_HOST'] . '/filemanager.php';
+        $scheme  = $https ? 'https' : 'http';
+        $gateway = $scheme . '://' . $_SERVER['HTTP_HOST'] . '/filemanager.php';
 
-        // Root folder staff — dipakai untuk item sidebar dinamis.
+        $this->rc->output->set_env('gateway_url', $gateway);
+        $this->rc->output->set_env('fm_gateway', $gateway);
+        $this->include_script($this->local_skin_path() . '/filemanager.js');
+
+        $this->sidebar_ctx = ['gateway' => $gateway, 'root' => $this->staff_root()];
+        $this->rc->output->add_handler('filemanager_sidebar', [$this, 'tpl_sidebar']);
+        $this->rc->output->set_pagetitle($this->gettext('filemanager.navtitle'));
+
+        $this->rc->output->send('filemanager.filemanager');
+    }
+
+    /**
+     * AJAX (?_task=filemanager&_action=tree&_folder=<rel>): daftar
+     * subfolder langsung untuk lazy-load pohon. Output JSON array of
+     * {name, path, has_children}. Hanya sesi Roundcube yang sah.
+     */
+    public function action_tree()
+    {
+        header('Content-Type: application/json; charset=utf-8');
+
+        if (!$this->rc->user || !$this->rc->user->ID) {
+            echo '[]';
+            exit;
+        }
+
+        $rel  = self::safe_rel(rcube_utils::get_input_value('_folder', rcube_utils::INPUT_GET));
+        $dir  = $rel === null ? null : self::resolve_dir($this->staff_root(), $rel);
+        $list = $dir === null ? [] : $this->tree_nodes($dir, $rel);
+
+        echo json_encode($list, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    /**
+     * Root folder staf: <staff_base>/<local-part email> — konsisten dengan
+     * aturan chroot pada gateway public_html/filemanager.php.
+     */
+    private function staff_root()
+    {
         $cfg = is_readable(__DIR__ . '/config.inc.php')
             ? @include __DIR__ . '/config.inc.php'
             : [];
@@ -98,49 +139,166 @@ class filemanager extends rcube_plugin
         $pos       = strrpos($username, '@');
         $localpart = strtolower($pos !== false ? substr($username, 0, $pos) : $username);
         $base      = rtrim(!empty($cfg['staff_base']) ? $cfg['staff_base'] : '/mnt/files', '/');
-        $root      = $base . '/' . preg_replace('/[^a-z0-9._-]/', '', $localpart);
 
-        $this->sidebar_ctx = ['gateway' => $gateway, 'root' => $root];
-
-        $this->rc->output->set_env('gateway_url', $gateway);
-        $this->rc->output->add_handler('filemanager_sidebar', [$this, 'tpl_sidebar']);
-        $this->rc->output->set_pagetitle($this->gettext('filemanager.navtitle'));
-
-        $this->rc->output->send('filemanager.filemanager');
+        return $base . '/' . preg_replace('/[^a-z0-9._-]/', '', $localpart);
     }
 
     /**
      * Template object <roundcube:object name="filemanager_sidebar" />:
-     * daftar pintasan folder pada #layout-sidebar. Item hanya muncul bila
-     * foldernya benar-benar ada pada root staff. Klik membuka path di dalam
-     * iframe via atribut target HTML (tanpa JS).
+     * - Pohon folder "Berkas Saya" (#filemanager-tree). Level pertama
+     *   dirender server-side; level lebih dalam dimuat via AJAX saat
+     *   node dibuka (lihat filemanager.js + action_tree()).
+     * - Pintasan terpisah (#filemanager-shortcuts): Dibagikan & Sampah,
+     *   hanya bila foldernya ada.
+     * Klik item membuka path tersebut di iframe via atribut target HTML.
      */
     public function tpl_sidebar()
     {
         $gateway = rtrim($this->sidebar_ctx['gateway'], '/');
         $root    = rtrim($this->sidebar_ctx['root'], '/');
-
-        $items = [
-            ['p' => '',       'dir' => null,     'icon' => 'folder-open', 'label' => $this->gettext('myfiles')],
-            ['p' => 'shared', 'dir' => 'shared', 'icon' => 'share-alt',   'label' => $this->gettext('shared')],
-            ['p' => '.trash', 'dir' => '.trash', 'icon' => 'trash',       'label' => $this->gettext('trash')],
-        ];
+        $nodes   = is_dir($root) ? $this->tree_nodes($root, '') : [];
 
         $out = '<div class="header">'
             . '<span class="header-title">' . rcube::Q($this->gettext('filemanager.navtitle')) . '</span>'
-            . '</div><div class="scroller"><ul class="listing" id="filemanager-folders">';
+            . '</div><div class="scroller">'
 
-        foreach ($items as $it) {
-            if ($it['dir'] !== null && !is_dir($root . '/' . $it['dir'])) {
+            // -- pohon folder --
+            . '<ul class="listing" id="filemanager-tree" role="tree">'
+            . '<li class="fm-node fm-expanded fm-haschildren" data-path="" data-loaded="1">'
+            . '<div class="fm-row"><span class="fm-toggle" role="button" tabindex="0">'
+            . '<i class="fa fa-angle-down"></i></span>'
+            . '<a href="' . rcube::Q($gateway . '?p=') . '" target="filemanager-frame">'
+            . '<i class="fa fa-folder-open"></i><span class="inner">'
+            . rcube::Q($this->gettext('myfiles')) . '</span></a></div>'
+            . '<ul class="fm-children">';
+        foreach ($nodes as $n) {
+            $out .= $this->node_li($gateway, $n);
+        }
+        $out .= '</ul></li></ul>';
+
+        // -- pintasan terpisah --
+        $out .= '<ul class="listing" id="filemanager-shortcuts">';
+        foreach ([['shared', 'share-alt', 'shared'], ['.trash', 'trash', 'trash']] as $s) {
+            if (!is_dir($root . '/' . $s[0])) {
                 continue;
             }
-            $href = $gateway . '?p=' . rawurlencode($it['p']);
-            $out .= '<li><a href="' . rcube::Q($href) . '" target="filemanager-frame">'
-                . '<i class="fa fa-' . $it['icon'] . '" aria-hidden="true"></i>'
-                . '<span class="inner">' . rcube::Q($it['label']) . '</span>'
-                . '</a></li>';
+            $out .= '<li><a href="' . rcube::Q($gateway . '?p=' . rawurlencode($s[0]))
+                . '" target="filemanager-frame"><i class="fa fa-' . $s[1]
+                . '"></i><span class="inner">' . rcube::Q($this->gettext($s[2]))
+                . '</span></a></li>';
         }
+        $out .= '</ul></div>';
 
-        return $out . '</ul></div>';
+        return $out;
+    }
+
+    /**
+     * Satu <li> pohon. Struktur identik dengan buildNode() di
+     * filemanager.js agar hasil AJAX dan render awal seragam.
+     */
+    private function node_li($gateway, array $node)
+    {
+        $href = $gateway . '?p=' . rawurlencode($node['path']);
+        $html = '<li class="fm-node' . ($node['has_children'] ? ' fm-haschildren' : '')
+            . '" data-path="' . rcube::Q($node['path']) . '"><div class="fm-row">';
+        if ($node['has_children']) {
+            $html .= '<span class="fm-toggle" role="button" tabindex="0">'
+                . '<i class="fa fa-angle-right"></i></span>';
+        }
+        $html .= '<a href="' . rcube::Q($href) . '" target="filemanager-frame">'
+            . '<i class="fa fa-folder"></i><span class="inner">' . rcube::Q($node['name'])
+            . '</span></a></div>';
+        if ($node['has_children']) {
+            $html .= '<ul class="fm-children"></ul>';
+        }
+        return $html . '</li>';
+    }
+
+    /**
+     * Normalisasi path relatif dari input user: string bersih ('' = root)
+     * atau NULL bila mencurigakan. Pengaman utama tetap resolve_dir()
+     * berbasis realpath.
+     */
+    private static function safe_rel($rel)
+    {
+        $rel = trim((string) $rel, '/');
+        if ($rel === '') {
+            return '';
+        }
+        if (strpos($rel, "\0") !== false) {
+            return null;
+        }
+        foreach (explode('/', $rel) as $seg) {
+            if ($seg === '' || $seg === '.' || $seg === '..') {
+                return null;
+            }
+        }
+        return $rel;
+    }
+
+    /**
+     * Konversi path relatif -> direktori nyata DI DALAM $root, atau NULL
+     * (menahan traversal/symlink keluar root).
+     */
+    private static function resolve_dir($root, $rel)
+    {
+        $base = realpath($root);
+        if ($base === false || !is_dir($base)) {
+            return null;
+        }
+        if ($rel === '') {
+            return $base;
+        }
+        $full = realpath($base . '/' . $rel);
+        if ($full === false || !is_dir($full) || strpos($full, $base . '/') !== 0) {
+            return null;
+        }
+        return $full;
+    }
+
+    /**
+     * Daftar subfolder langsung dari $dir ($rel = path relatifnya terhadap
+     * root staf). Entri top-level 'shared' dan '.trash' disembunyikan dari
+     * pohon karena tersedia sebagai pintasan terpisah.
+     */
+    private function tree_nodes($dir, $rel)
+    {
+        $entries = @scandir($dir);
+        if (!is_array($entries)) {
+            return [];
+        }
+        $out = [];
+        foreach ($entries as $name) {
+            if ($name === '.' || $name === '..' || $name[0] === '.') {
+                continue; // termasuk .cache/.AppleDouble/.trash dsb.
+            }
+            if ($rel === '' && $name === 'shared') {
+                continue; // tersedia sebagai pintasan terpisah
+            }
+            $full = $dir . '/' . $name;
+            if (!is_dir($full)) {
+                continue;
+            }
+            $has  = false;
+            $subs = @scandir($full);
+            foreach ((array) $subs as $s) {
+                if ($s !== '.' && $s !== '..' && is_dir($full . '/' . $s)) {
+                    $has = true;
+                    break;
+                }
+            }
+            $out[] = [
+                'name'         => $name,
+                'path'         => $rel === '' ? $name : $rel . '/' . $name,
+                'has_children' => $has,
+            ];
+            if (count($out) >= 500) { // pengaman mount raksasa
+                break;
+            }
+        }
+        usort($out, function ($a, $b) {
+            return strnatcasecmp($a['name'], $b['name']);
+        });
+        return $out;
     }
 }
