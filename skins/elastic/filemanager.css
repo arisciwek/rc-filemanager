@@ -1,0 +1,20 @@
+/**
+ * Roundcube Webmail — Filemanager Plugin
+ *
+ * File : /plugins/filemanager/skins/elastic/filemanager.css
+ * Path : /var/www/roundcube/plugins/filemanager/skins/elastic/filemanager.css
+ *
+ * Style tombol "Filemanager" pada taskmenu (#taskmenu) skin Elastic.
+ * Ikon digambar via pseudo-element :before pada anchor, mengikuti
+ * konvensi ikon Elastic (.font-icon-class di menu.less).
+ *
+ * Dimuat oleh filemanager_ui.php melalui include_stylesheet().
+ */
+
+.menu a.button-filemanager:before {
+    content: "";
+    background-image: url("images/filemanager.png");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+}
