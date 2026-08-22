@@ -46,6 +46,9 @@ class filemanager extends rcube_plugin
 
     private $ui;
 
+    /** @var array Konteks untuk handler sidebar [gateway, root] */
+    private $sidebar_ctx = [];
+
     public function init()
     {
         $this->rc  = rcmail::get_instance();
@@ -66,18 +69,78 @@ class filemanager extends rcube_plugin
     }
 
     /**
-     * Render halaman Filemanager (layout Elastic berisi iframe ke gateway).
+     * Render halaman Filemanager: layout Elastic tiga kolom
+     * (menu bawaan + sidebar pintasan folder + iframe engine).
      *
-     * Gateway /filemanager.php yang menjalankan engine TinyFileManager:
-     * - sesi Roundcube valid  -> mode staff (SSO, tanpa login)
-     * - tanpa sesi Roundcube  -> mode klien (form login bawaan engine)
+     * Gateway /filemanager.php menjalankan engine TinyFileManager dalam
+     * mode staff (SSO sesi Roundcube, tanpa form login). Pengunjung tanpa
+     * sesi di-redirect gateway ke task ini.
      */
     public function action_index()
     {
-        $this->rc->output->set_pagetitle(
-            $this->gettext('filemanager.navtitle')
-        );
+        // URL gateway absolut penuh (scheme://host/filemanager.php).
+        // PENTING: fix_paths() rcmail_output_html menimpa src/href
+        // root-absolut ("/x") dengan base_path skin -> "/skins/elastic/x".
+        // Nilai berisi "://" dilewati semua rewriter Roundcube.
+        $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+            || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+        $scheme   = $https ? 'https' : 'http';
+        $gateway  = $scheme . '://' . $_SERVER['HTTP_HOST'] . '/filemanager.php';
+
+        // Root folder staff — dipakai untuk item sidebar dinamis.
+        $cfg = is_readable(__DIR__ . '/config.inc.php')
+            ? @include __DIR__ . '/config.inc.php'
+            : [];
+        if (!is_array($cfg)) {
+            $cfg = [];
+        }
+        $username  = (string) $this->rc->user->get_username();
+        $pos       = strrpos($username, '@');
+        $localpart = strtolower($pos !== false ? substr($username, 0, $pos) : $username);
+        $base      = rtrim(!empty($cfg['staff_base']) ? $cfg['staff_base'] : '/mnt/files', '/');
+        $root      = $base . '/' . preg_replace('/[^a-z0-9._-]/', '', $localpart);
+
+        $this->sidebar_ctx = ['gateway' => $gateway, 'root' => $root];
+
+        $this->rc->output->set_env('gateway_url', $gateway);
+        $this->rc->output->add_handler('filemanager_sidebar', [$this, 'tpl_sidebar']);
+        $this->rc->output->set_pagetitle($this->gettext('filemanager.navtitle'));
 
         $this->rc->output->send('filemanager.filemanager');
+    }
+
+    /**
+     * Template object <roundcube:object name="filemanager_sidebar" />:
+     * daftar pintasan folder pada #layout-sidebar. Item hanya muncul bila
+     * foldernya benar-benar ada pada root staff. Klik membuka path di dalam
+     * iframe via atribut target HTML (tanpa JS).
+     */
+    public function tpl_sidebar()
+    {
+        $gateway = rtrim($this->sidebar_ctx['gateway'], '/');
+        $root    = rtrim($this->sidebar_ctx['root'], '/');
+
+        $items = [
+            ['p' => '',       'dir' => null,     'icon' => 'folder-open', 'label' => $this->gettext('myfiles')],
+            ['p' => 'shared', 'dir' => 'shared', 'icon' => 'share-alt',   'label' => $this->gettext('shared')],
+            ['p' => '.trash', 'dir' => '.trash', 'icon' => 'trash',       'label' => $this->gettext('trash')],
+        ];
+
+        $out = '<div class="header">'
+            . '<span class="header-title">' . rcube::Q($this->gettext('filemanager.navtitle')) . '</span>'
+            . '</div><div class="scroller"><ul class="listing" id="filemanager-folders">';
+
+        foreach ($items as $it) {
+            if ($it['dir'] !== null && !is_dir($root . '/' . $it['dir'])) {
+                continue;
+            }
+            $href = $gateway . '?p=' . rawurlencode($it['p']);
+            $out .= '<li><a href="' . rcube::Q($href) . '" target="filemanager-frame">'
+                . '<i class="fa fa-' . $it['icon'] . '" aria-hidden="true"></i>'
+                . '<span class="inner">' . rcube::Q($it['label']) . '</span>'
+                . '</a></li>';
+        }
+
+        return $out . '</ul></div>';
     }
 }

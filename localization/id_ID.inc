@@ -18,3 +18,6 @@
 $labels = [];
 
 $labels['navtitle'] = 'Berkas';
+$labels['myfiles']  = 'Berkas Saya';
+$labels['shared']   = 'Dibagikan';
+$labels['trash']    = 'Sampah';

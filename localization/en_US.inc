@@ -18,3 +18,6 @@
 $labels = [];
 
 $labels['navtitle'] = 'Files';
+$labels['myfiles']  = 'My Files';
+$labels['shared']   = 'Shared';
+$labels['trash']    = 'Trash';

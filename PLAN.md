@@ -122,6 +122,36 @@ if (defined('FILEMANAGER_STAFF')) {
   → redirect ke form login. Entri uji sudah dibersihkan.
 - Mode staff (SSO via iframe) menunggu uji manual: login Roundcube → taskbar
   **Berkas**.
+
+## Iterasi 2 (2026-08-22) — fix iframe 404 + pemisahan URL staff/klien
+
+**Bug**: iframe memuat `/skins/elastic/filemanager.php` (404 Apache).
+**Akar masalah** (rcmail_output_html.php): `fix_paths()`/`file_callback()`
+menimpa SEMUA src/href root-absolut dengan base_path skin bila file tidak
+ditemukan di skin — `src="/filemanager.php"` menjadi
+`src="/skins/elastic/filemanager.php"`.
+
+**Solusi yang diterapkan:**
+
+1. Template: `src="<roundcube:var name='env:gateway_url' />"`; plugin set env
+   `scheme://HTTP_HOST/filemanager.php`. Nilai berisi `://` dilewati semua
+   rewriter Roundcube.
+2. Gateway dipisah dua skrip:
+   - `public_html/filemanager.php` = STAFF saja; tanpa sesi → redirect
+     `./?_task=filemanager`.
+   - `public_html/filemanager-client.php` = ENTRY KLIEN; tanpa bootstrap
+     Roundcube, auth TFM aktif. Link untuk dibagikan.
+3. Layout staff jadi 3 kolom Elastic: menu bawaan + `#layout-sidebar`
+   (template object `filemanager_sidebar`: Berkas Saya / Dibagikan / Sampah,
+   item hanya tampil bila foldernya ada; navigasi via `target="filemanager-frame"`)
+   + `#layout-content` berisi iframe.
+4. `'boilerplate'` dihapus dari `$config['plugins']` Roundcube.
+
+**Verifikasi iterasi 2:** php -l lulus semua; anonim ke /filemanager.php →
+302 `./?_task=filemanager`; anonim ke /filemanager-client.php → "belum
+dikonfigurasi"; klien uji login+listing chroot OK, traversal ditolak;
+entri uji dibersihkan. Uji manual staff (login → tombol Berkas → 3 kolom +
+iframe) menunggu konfirmasi user.
 - Perbaikan yang ditemukan saat build:
   - `config.inc.php` wajib diakhiri `return $config;` agar `@include`
     menghasilkan array.

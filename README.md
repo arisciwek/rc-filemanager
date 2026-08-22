@@ -11,6 +11,22 @@ Plugin Roundcube yang mengintegrasikan [TinyFileManager v2.6](https://github.com
 Klien hanya melihat foldernya sendiri (chroot native `$directories_users` TFM);
 staff `operation` melihat seluruh isi mount-nya termasuk semua folder klien.
 
+Tampilan staff memakai layout Elastic tiga kolom:
+
+```
+┌──────────────┬─────────────────┬──────────────────────────┐
+│ layout-menu  │ layout-sidebar  │ layout-content           │
+│ Mail         │ Berkas Saya     │                          │
+│ Calendar     │ Dibagikan       │ TinyFileManager (iframe) │
+│ Contacts     │ Sampah          │                          │
+│ Files ←      │                 │                          │
+│ Settings     │                 │                          │
+└──────────────┴─────────────────┴──────────────────────────┘
+```
+
+Item sidebar hanya muncul bila foldernya ada (`shared`, `.trash`) dan membuka
+path tersebut di dalam iframe (atribut `target` HTML, tanpa JS).
+
 ## Struktur Direktori
 
 ```
@@ -29,23 +45,29 @@ filemanager/
 └── skins/elastic/
     ├── filemanager.css          # Style tombol taskmenu (ikon)
     ├── images/filemanager.png   # Ikon menu 24x24
-    └── templates/filemanager.html # Layout Elastic + iframe gateway
+    └── templates/filemanager.html # Layout Elastic 3 kolom + iframe gateway
 
-public_html/filemanager.php      # GATEWAY (di luar repo) — bootstrap Roundcube,
-                                 # verifikasi sesi, jalankan engine dalam 2 mode.
+public_html/filemanager.php      # GATEWAY STAFF (di luar repo) — verifikasi
+                                 # sesi Roundcube; anonim di-redirect ke
+                                 # ?_task=filemanager
+public_html/filemanager-client.php # ENTRY KLIEN (di luar repo) — selalu mode
+                                   # klien, form login TFM
 ```
 
 ## Cara Kerja
 
 1. Staff login Roundcube → klik tombol **Berkas** pada taskmenu (`#taskmenu`).
-2. Task `filemanager` merender template Elastic yang berisi iframe ke
-   `/filemanager.php` (gateway).
-3. Gateway mem-bootstrap framework Roundcube:
+2. Task `filemanager` merender template Elastic tiga kolom; iframe memuat
+   `/filemanager.php` (gateway staff) via URL absolut `scheme://host/...` —
+   penting agar tidak ditulis-ulang `fix_paths()` Roundcube menjadi
+   `/skins/elastic/...`.
+3. Gateway staff:
    - Sesi valid → `FM_EMBED` aktif → TFM jalan **tanpa login**, chroot ke
      folder staff (folder harus sudah ada/mounted; jika tidak → 403).
-   - Tanpa sesi → sesi Roundcube ditutup, auth bawaan TFM aktif → form login;
-     setelah login klien di-chroot via `$directories_users` (fitur native TFM).
-4. Kredensial klien disimpan di `config.inc.php` (**di luar DocumentRoot**
+   - Tanpa sesi → redirect ke `/?_task=filemanager`.
+4. Klien membuka `/filemanager-client.php`: engine berjalan dengan auth
+   bawaan aktif → form login → chroot via `$directories_users`.
+5. Kredensial klien disimpan di `config.inc.php` (**di luar DocumentRoot**
    karena secure layout — tidak dilayani web server).
 
 Detail teknis lanjutan: lihat [PLAN.md](PLAN.md).
@@ -88,6 +110,7 @@ Detail teknis lanjutan: lihat [PLAN.md](PLAN.md).
    (username, hash bcrypt, path chroot, opsi readonly).
 3. Perubahan langsung efektif tanpa restart (dibaca per request).
 4. Menghapus entri klien = klien tersebut tidak bisa login lagi.
+5. Bagikan link **`https://<domain>/filemanager-client.php`** ke klien.
 
 ## Persyaratan
 

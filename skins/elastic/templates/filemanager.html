@@ -1,10 +1,14 @@
 <roundcube:include file="includes/layout.html" />
 <roundcube:include file="includes/menu.html" />
 
+<div id="layout-sidebar" class="listbox" role="navigation">
+	<roundcube:object name="filemanager_sidebar" />
+</div>
+
 <div id="layout-content" class="selected" role="main">
-	<iframe id="filemanager-frame"
-		src="/filemanager.php"
+	<iframe name="filemanager-frame" id="filemanager-frame"
 		title="Filemanager"
+		src="<roundcube:var name='env:gateway_url' />"
 		style="width:100%;height:100%;border:0;display:block;"></iframe>
 </div>
 
