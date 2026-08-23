@@ -45,6 +45,18 @@ Status              : P1 TERPASANG · P2/P3 MENUNGGU EVALUASI
       (iframe staf tetap jalan: same-origin)
 - Terpasang di `fm_show_header_login()` dan `fm_show_header()`
 
+### HSTS [P2 terpasang 2026-08-23 — respons scanner]
+- [x] `Strict-Transport-Security: max-age=31536000; includeSubDomains`
+      via Apache global (`conf-enabled/hsts.conf`, mod_headers aktif);
+      sumber konfigurasi ikut repo:
+      `gateways/apache-hsts.conf`
+- Efek: setelah kunjungan HTTPS pertama, browser memaksa HTTPS selama
+  1 tahun untuk domain & seluruh subdomainnya.
+- Rollback bila perlu: hapus/kosongkan header lalu tunggu kedaluwarsa,
+  atau turunkan max-age (mis. 21600) beberapa hari sebelum menghapus.
+- Catatan: header pada respons HTTP diabaikan browser (sesuai spec) —
+  aman bagi akses http internal yang belum pernah buka via https.
+
 ### CRUD Kelola Klien (create/edit/delete)
 - [x] CSRF token sesi (`_token`, diverifikasi `hash_equals`)
 - [x] Gate manager (`is_manager()`)
@@ -75,7 +87,7 @@ Status              : P1 TERPASANG · P2/P3 MENUNGGU EVALUASI
 
 | # | Item | Catatan |
 |---|------|---------|
-| E1 | **HSTS** (`Strict-Transport-Security`) | Header paling tepat dipasang di TLS-proxy (LXC 101 / edge), bukan di Apache yang menerima HTTP; alternatif: tambah manual di vhost bila diinginkan |
+| E1 | ~~HSTS~~ | ✅ TERPASANG 2026-08-23 (lihat bagian HSTS di atas) |
 | E2 | **Logout-CSRF** | Logout masih GET `?logout=1`. Risiko rendah (hanya memaksa sesi berakhir). Perbaikan = POST ber-token, mengorbankan kesederhanaan |
 | E3 | **Fail2ban** | Throttle saat ini berbasis sesi (per-browser). Untuk penyerang lintas-sesi, sarankan pasang fail2ban yang memantau pola POST gagal di access log |
 | E4 | **Rate limit halaman Roundcube** | Di luar plugin (tanggung jawab inti RC / infrastruktur) |
