@@ -54,9 +54,11 @@ filemanager/
     ├── images/filemanager.png   # Ikon menu 24x24
     └── templates/filemanager.html # Layout Elastic 3 kolom + iframe gateway
 
-public_html/filemanager.php      # GATEWAY SATU PINTU (di luar repo):
+gateways/filemanager.php         # GATEWAY SATU PINTU (di dalam repo!):
                                  # sesi Roundcube valid -> mode staff SSO;
-                                 # anonim -> mode klien (form login TFM)
+                                 # anonim -> mode klien (form login TFM).
+                                 # Dieksekusi via Alias Apache /filemanager
+gateways/apache-filemanager-gateway.conf # konfigurasi Apache (a2enconf)
 ```
 
 ## Cara Kerja

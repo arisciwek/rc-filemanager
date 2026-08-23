@@ -94,7 +94,7 @@ class filemanager extends rcube_plugin
         $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
             || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
         $scheme  = $https ? 'https' : 'http';
-        $gateway = $scheme . '://' . $_SERVER['HTTP_HOST'] . '/filemanager.php';
+        $gateway = $scheme . '://' . $_SERVER['HTTP_HOST'] . '/filemanager';
 
         $this->rc->output->set_env('gateway_url', $gateway);
         $this->rc->output->set_env('fm_gateway', $gateway);
