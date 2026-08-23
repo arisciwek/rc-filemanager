@@ -435,6 +435,8 @@ if ($use_auth) {
     } else {
         // Form
         unset($_SESSION[FM_SESSION_ID]['logged']);
+        // [LOCAL PATCH rc-filemanager] nama field acak utk render ini
+        $lf = fm_login_fields_generate();
         fm_show_header_login();
 ?>
         <section class="h-100">
@@ -463,14 +465,28 @@ if ($use_auth) {
                                         </div>
                                     </div>
                                     <hr />
+                                    <!-- [LOCAL PATCH rc-filemanager] honeypot:
+                                         nama standar utk bot, disembunyikan -->
+                                    <div class="d-none" aria-hidden="true">
+                                        <div class="mb-3">
+                                            <label for="fm_usr" class="pb-2">Ulangi username</label>
+                                            <input type="text" class="form-control" id="fm_usr"
+                                                   name="fm_usr" value="" autocomplete="off">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="fm_pwd" class="pb-2">Ulangi password</label>
+                                            <input type="password" class="form-control" id="fm_pwd"
+                                                   name="fm_pwd" autocomplete="off">
+                                        </div>
+                                    </div>
                                     <div class="mb-3">
-                                        <label for="fm_usr" class="pb-2"><?php echo lng('Username'); ?></label>
-                                        <input type="text" class="form-control" id="fm_usr" name="fm_usr" required autofocus>
+                                        <label for="<?php echo $lf['usr']; ?>" class="pb-2"><?php echo lng('Username'); ?></label>
+                                        <input type="text" class="form-control" id="<?php echo $lf['usr']; ?>" name="<?php echo $lf['usr']; ?>" required autofocus>
                                     </div>
 
                                     <div class="mb-3">
-                                        <label for="fm_pwd" class="pb-2"><?php echo lng('Password'); ?></label>
-                                        <input type="password" class="form-control" id="fm_pwd" name="fm_pwd" required>
+                                        <label for="<?php echo $lf['pwd']; ?>" class="pb-2"><?php echo lng('Password'); ?></label>
+                                        <input type="password" class="form-control" id="<?php echo $lf['pwd']; ?>" name="<?php echo $lf['pwd']; ?>" required>
                                     </div>
 
                                     <div class="mb-3">
