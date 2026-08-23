@@ -50,10 +50,26 @@ class filemanager_ui
             'type'       => 'link',
         ], 'taskbar');
 
-        // Load skin-specific stylesheet
-        $this->plugin->include_stylesheet(
-            $this->plugin->local_skin_path() . '/filemanager.css'
-        );
+        // Load skin-specific stylesheet.
+        // static.php menyajikan aset dengan Cache-Control max-age 7 hari
+        // dan link CSS tidak diberi versi otomatis oleh Roundcube —
+        // tambahkan ?s=<mtime> sendiri agar perubahan CSS selalu terambil
+        // browser tanpa hard-refresh.
+        // Catatan: include_css() hanya ada di output HTML — pada request
+        // JSON (ajax) pakai jalur standar yang punya guard sendiri.
+        if ($this->rc->output && $this->rc->output->type == 'html'
+            && method_exists($this->rc->output, 'include_css')) {
+            $skinPath = $this->plugin->local_skin_path(); // mis. skins/elastic
+            $cssFile  = __DIR__ . '/' . $skinPath . '/filemanager.css';
+            $version  = @filemtime($cssFile) ?: '1';
+            $this->rc->output->include_css(
+                'plugins/filemanager/' . $skinPath . '/filemanager.css?s=' . $version
+            );
+        } else {
+            $this->plugin->include_stylesheet(
+                $this->plugin->local_skin_path() . '/filemanager.css'
+            );
+        }
 
         $this->ready = true;
     }

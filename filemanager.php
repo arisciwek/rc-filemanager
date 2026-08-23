@@ -1020,10 +1020,13 @@ class filemanager extends rcube_plugin
                 . $g('pwd_hint_edit') . '</span></div>';
         }
 
-        /* picker folder HOME: input + tombol buka menu + menu filterable */
+        /* picker folder HOME: input + tombol buka menu + menu filterable.
+         * Grid dua kolom: kiri = identitas akun, kanan = share per bulan;
+         * tombol aksi full-width di bawah grid. */
         $html .= '<form method="post" action="?_task=filemanager&amp;_action=clients_save" class="fm-form">'
             . '<input type="hidden" name="_token" value="' . $q($token) . '">'
             . '<input type="hidden" name="_cu" value="' . $q($edit ? $edit['username'] : '') . '">'
+            . '<div class="fm-form-grid"><div class="fm-form-main">'
 
             . '<label for="fm-home">' . $g('field_home') . '</label>'
             . '<div class="fm-home-picker">'
@@ -1071,7 +1074,10 @@ class filemanager extends rcube_plugin
             . ($edit ? '' : ' required minlength="8"')
             . ' value="' . $q(isset($ctx['p']) ? $ctx['p'] : '') . '">'
             . '<button type="button" id="fm-genpwd" class="btn btn-secondary" aria-label="' . $g('btn_generate') . '">' . $g('btn_generate') . '</button>'
-            . '</span>';
+            . '</span>'
+
+            // tutup kolom kiri, buka kolom kanan (share per bulan)
+            . '</div><div class="fm-form-aside">';
 
         /* area checkbox share: dikelompokkan per tahun, unit = bulan */
         $html .= '<fieldset class="fm-shares"><legend>' . $g('field_shares') . '</legend>';
@@ -1097,10 +1103,16 @@ class filemanager extends rcube_plugin
                 $html .= '</div>';
             }
         }
-        $html .= '</fieldset>';
+        // tombol Pindai menempel di dasar fieldset-nya sendiri
+        $html .= '<div class="fm-actions fm-scan-actions">'
+            . '<button type="submit" name="_do" value="scan" class="btn btn-secondary">'
+            . $g('btn_scan') . '</button></div>'
+            . '</fieldset>';
+
+        // tutup grid, tombol aksi full-width di bawahnya
+        $html .= '</div></div>';
 
         $html .= '<div class="fm-actions">'
-            . '<button type="submit" name="_do" value="scan" class="btn btn-secondary">' . $g('btn_scan') . '</button>'
             . '<button type="submit" name="_do" value="save" class="btn btn-primary mainaction">'
             . $g('btn_save') . '</button>'
             . ' <a href="?_task=filemanager&amp;_action=clients&amp;_saved=1"'
@@ -1119,8 +1131,7 @@ class filemanager extends rcube_plugin
             . '<li><span>' . $g('stat_shares') . '</span><b>' . $statShares . '</b></li>'
             . '</ul></div>'
 
-            . '<div class="fm-card fm-side-card"><h3 class="fm-side-title">'
-            . $g('settings_title') . '</h3>'
+            . '<div class="fm-card fm-side-card">'
             . '<form method="post" action="?_task=filemanager&amp;_action=clients_settings"'
             . ' class="fm-form fm-form-settings">'
             . '<input type="hidden" name="_token" value="' . $q($token) . '">'
