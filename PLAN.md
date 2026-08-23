@@ -251,3 +251,58 @@ Komponen:
 Verifikasi: php -l semua file OK; anon `?_action=clients` → login page;
 gateway staff 302; entry klien menampilkan pesan "belum dikonfigurasi"
 saat tabel kosong.
+
+## Iterasi 5 (2026-08-23) — tabel akun: scroll + sticky header (paging ditunda)
+
+Keputusan: tabel Kelola Klien TIDAK memakai paging maupun DataTable.
+Alasan: pencarian instan sisi-klien sudah ada (filter semua kolom +
+penghitung "n / m akun"), lebih efektif daripada lompat halaman;
+dependensi DataTable (~250KB jQuery plugin) tidak sepadan dan rawan
+bentrok gaya dengan Elastic.
+
+Implementasi:
+- `.fm-table-wrap` — container `max-height: 65vh`, `overflow-y: auto`,
+  `overscroll-behavior: contain`.
+- `.fm-clients-table thead th { position: sticky; top: 0 }` — header
+  tetap terlihat saat menggulir.
+- Baris hover disorot; baris kosong disembunyikan saat mencari.
+
+Pemicu meninjau ulang paging server-side: jumlah akun tembus ±100,
+atau render halaman terasa berat. Struktur siap ditambah tanpa ubah
+skema (query LIMIT/OFFSET di fm_store::all() + kontrol di controller).
+
+Catatan unik yang menyertai (sudah implementasi iterasi ini):
+- username: PRIMARY KEY (DB) + cek controller + pattern browser.
+- home: UNIQUE KEY uq_home (migrasi idempoten) + cek controller
+  ("1 akun = 1 perusahaan").
+- INSERT ... ON DUPLICATE KEY UPDATE DIHAPUS — diganti insert()/update()
+  tegas agar tabrakan unique tidak pernah menimpa diam-diam; exception
+  PDO duplicate-key diterjemahkan menjadi notifikasi err_user_exists /
+  err_home_exists.
+
+## TODO — Pencarian & Paging Tabel Kelola Klien (hasil diskusi 2026-08-23)
+
+Status kini: pencarian instan sisi-klien (semua kolom) + tabel scroll
+`.fm-table-wrap` (65vh, header sticky). Tanpa paging/DataTable.
+Referensi: snippet "ambil_data.php" (server-side search/paging mandiri)
+DINILAI TIDAK LAYAK diadopsi langsung — bypass sesi/CSRF/gate manager,
+koneksi DB kedua (root), render HTML dari backend tanpa kolom aksi
+Ubah/Hapus, tombol pagination loop semua nomor.
+
+Pemicu implementasi: akun klien tembus ±100, atau render terasa berat.
+
+Rencana saat pemicu tercapai (pola yang disetujui):
+1. Action baru `_action=clients_data` (JSON):
+   - render_gate() manager-only + token
+   - PDO prepared via fm_store::pdo() — TANPA koneksi kedua:
+     WHERE home LIKE ? ORDER BY username LIMIT ? OFFSET ?
+   - COUNT(*) terpisah untuk total halaman
+2. Frontend:
+   - fetch + debounce 300ms + reset ke halaman 1 saat keyword berubah
+   - render baris tetap di JS (kolom aksi Ubah/Hapus tetap ada,
+     fm-del confirm tetap jalan)
+   - pagination prev/next (bukan loop semua nomor), halaman aktif
+     di query param (?_page=)
+3. Pencarian SATU kolom saja: nama perusahaan (home LIKE) — keputusan
+   user 2026-08-23; tampilan perusahaan tetap lewat home_display().
+4. Client-side instant filter dipertahankan untuk halaman aktif.

@@ -417,10 +417,33 @@
     color: #adb5bd;
 }
 
+/* kartu tabel: tinggi terbatas + scroll sendiri, header sticky */
+.fm-card-table {
+    padding: 0;
+}
+
+.fm-table-wrap {
+    max-height: 65vh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.fm-clients-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: #fff;
+    box-shadow: inset 0 -1px 0 #e9ecef;
+}
+
 .fm-clients-table {
     width: 100%;
     border-collapse: collapse;
     font-variant-numeric: tabular-nums; /* angka & timestamp rata kolom */
+}
+
+.fm-clients-table tbody tr:hover {
+    background: rgba(18, 52, 86, .05);
 }
 
 /* tombol aksi baris tabel lebih ringkas */

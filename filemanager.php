@@ -1144,7 +1144,8 @@ class filemanager extends rcube_plugin
             . ' autocomplete="off" spellcheck="false">'
             . '<span class="fm-hint" id="fm-table-count" aria-live="polite"></span>'
             . '</div>'
-            . '<div class="fm-card"><table class="fm-clients-table" id="fm-clients-table"><thead><tr>'
+            . '<div class="fm-card fm-card-table"><div class="fm-table-wrap">'
+            . '<table class="fm-clients-table" id="fm-clients-table"><thead><tr>'
             . '<th>' . $g('field_username') . '</th>'
             . '<th>' . $g('field_home') . '</th>'
             . '<th>' . $g('col_shares') . '</th>'
@@ -1177,7 +1178,7 @@ class filemanager extends rcube_plugin
                 . '<td><a href="?_task=filemanager&amp;_action=clients&amp;_edit=' . $uEnc
                 . '">' . $g('btn_edit') . '</a> ' . $dForm . '</td></tr>';
         }
-        $html .= '</tbody></table></div>';
+        $html .= '</tbody></table></div></div>';
 
         return $html . '</div>';
     }
