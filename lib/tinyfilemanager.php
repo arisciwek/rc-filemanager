@@ -252,8 +252,31 @@ if (defined('FM_EMBED')) {
         mb_regex_encoding('UTF-8');
     }
 
-    session_cache_limiter('nocache'); // Prevent logout issue after page was cached
-    session_name(FM_SESSION_ID);
+    // [LOCAL PATCH rc-filemanager] cookie flags aman sebelum sesi dibuat
+    // (hanya saat belum ada sesi aktif — pada mode embed staf, sesi
+    // Roundcube sudah berjalan lebih dulu).
+    // secure=true TANPA syarat: deployment selalu berada di balik
+    // TLS-proxy publik; akses http internal tidak memakai cookie ini.
+    if ((!function_exists('session_status') || session_status() === PHP_SESSION_NONE)
+        && function_exists('session_set_cookie_params')) {
+        session_set_cookie_params([
+            'lifetime' => 0,
+            'path'     => '/',
+            'httponly' => true,
+            'samesite' => 'Lax',
+            'secure'   => true,
+        ]);
+    }
+
+    // [LOCAL PATCH rc-filemanager] hindari warning saat sesi lain aktif
+    // (mis. mode embed staf — sesi Roundcube sudah berjalan lebih dulu)
+    if (!function_exists('session_status') || session_status() === PHP_SESSION_NONE) {
+        session_cache_limiter('nocache'); // Prevent logout issue after page was cached
+    }
+    // [LOCAL PATCH rc-filemanager] ganti nama sesi hanya bila belum aktif
+    if (!function_exists('session_status') || session_status() === PHP_SESSION_NONE) {
+        session_name(FM_SESSION_ID);
+    }
     function session_error_handling_function($code, $msg, $file, $line)
     {
         // Permission denied for default session, try to create a new one
@@ -353,14 +376,34 @@ if ($use_auth) {
         // Logged
     } elseif (isset($_POST['fm_usr'], $_POST['fm_pwd'], $_POST['token'])) {
         // Logging In
+        // [LOCAL PATCH rc-filemanager] brute-force throttle:
+        // 5 kegagalan -> tolak percobaan selama 10 menit (per sesi)
+        $fmFailKey   = 'fm_login_fail';
+        $fmFail      = isset($_SESSION[FM_SESSION_ID][$fmFailKey])
+            ? $_SESSION[FM_SESSION_ID][$fmFailKey] : array('n' => 0, 't' => 0);
+        $fmNow       = time();
+        $fmWindowOk  = ($fmNow - $fmFail['t']) < 600;
+        if ($fmFail['n'] >= 5 && $fmWindowOk) {
+            fm_set_msg('Terlalu banyak percobaan gagal. Coba lagi dalam beberapa menit.', 'error');
+            fm_redirect(FM_SELF_URL);
+        }
         sleep(1);
         if (function_exists('password_verify')) {
             if (isset($auth_users[$_POST['fm_usr']]) && isset($_POST['fm_pwd']) && password_verify($_POST['fm_pwd'], $auth_users[$_POST['fm_usr']]) && verifyToken($_POST['token'])) {
+                // [LOCAL PATCH rc-filemanager] anti session fixation
+                session_regenerate_id(true);
                 $_SESSION[FM_SESSION_ID]['logged'] = $_POST['fm_usr'];
+                unset($_SESSION[FM_SESSION_ID][$fmFailKey]);
                 fm_set_msg(lng('You are logged in'));
                 fm_redirect(FM_SELF_URL);
             } else {
                 unset($_SESSION[FM_SESSION_ID]['logged']);
+                // [LOCAL PATCH rc-filemanager] catat kegagalan dgn window
+                $fmFail = array(
+                    'n' => $fmFail['n'] + 1,
+                    't' => $fmWindowOk ? $fmFail['t'] : $fmNow,
+                );
+                $_SESSION[FM_SESSION_ID][$fmFailKey] = $fmFail;
                 fm_set_msg(lng('Login failed. Invalid username or password'), 'error');
                 fm_redirect(FM_SELF_URL);
             }
@@ -3751,6 +3794,17 @@ class FM_Config
  * @param string $path
  */
 // [LOCAL PATCH rc-filemanager] ============================================
+// Nama perusahaan klien aktif (dari lib/config.php via $GLOBALS) —
+// dipakai sidebar & breadcrumb sisi klien.
+function fm_client_company_name()
+{
+    $u = isset($_SESSION[FM_SESSION_ID]['logged'])
+        ? $_SESSION[FM_SESSION_ID]['logged'] : '';
+    $names = isset($GLOBALS['fm_client_home_names'])
+        ? $GLOBALS['fm_client_home_names'] : [];
+    return ($u !== '' && isset($names[$u])) ? $names[$u] : '';
+}
+
 // Label & logo halaman LOGIN klien — dari config 'client_login'
 // (diteruskan gateway sebagai konstanta FILEMANAGER_CLIENT_LOGIN).
 function fm_client_login_cfg($key, $default = '')
@@ -4039,6 +4093,10 @@ function fm_show_message()
 function fm_show_header_login()
 {
     header("Content-Type: text/html; charset=utf-8");
+    // [LOCAL PATCH rc-filemanager] security headers
+    header("X-Content-Type-Options: nosniff");
+    header("Referrer-Policy: strict-origin-when-cross-origin");
+    header("X-Frame-Options: SAMEORIGIN");
     header("Expires: Sat, 26 Jul 1997 05:00:00 GMT");
     header("Cache-Control: no-store, no-cache, must-revalidate, post-check=0, pre-check=0");
     header("Pragma: no-cache");
@@ -4201,6 +4259,10 @@ function fm_show_header_login()
     function fm_show_header()
     {
         header("Content-Type: text/html; charset=utf-8");
+    // [LOCAL PATCH rc-filemanager] security headers
+    header("X-Content-Type-Options: nosniff");
+    header("Referrer-Policy: strict-origin-when-cross-origin");
+    header("X-Frame-Options: SAMEORIGIN");
         header("Expires: Sat, 26 Jul 1997 05:00:00 GMT");
         header("Cache-Control: no-store, no-cache, must-revalidate, post-check=0, pre-check=0");
         header("Pragma: no-cache");
