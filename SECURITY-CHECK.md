@@ -37,6 +37,12 @@ Status              : P1 TERPASANG · P2/P3 MENUNGGU EVALUASI
 - [x] **Cookie sesi TFM `secure => true` tanpa syarat** — alasan sama.
 - Verifikasi: Set-Cookie `roundcube_sessid=...; path=/; secure;
   HttpOnly` ✓; data URI logo login tak terpengaruh path ✓
+- [x] **`session_samesite = 'Lax'`** ditambahkan (2026-08-23) — cookie
+      sesi kini lengkap: secure + HttpOnly + SameSite=Lax ✓
+- Catatan capture scanner: contoh respons dengan CSP v1 diambil pada
+  11:02:56, SEBELUM v2 aktif — data basi. Ketiga varian path
+  (`/filemanager`, `/filemanager/`, `/filemanager.php`) telah
+  diverifikasi menyajikan CSP v2.
 
 ### Header keamanan [P1]
 - [x] `X-Content-Type-Options: nosniff`
@@ -60,12 +66,18 @@ Status              : P1 TERPASANG · P2/P3 MENUNGGU EVALUASI
 ### Content-Security-Policy [P2 terpasang 2026-08-23 — respons scanner]
 - [x] Via Apache global (`conf-enabled/csp.conf`; sumber di repo:
       `gateways/apache-csp.conf`).
-- Kebijakan v1 (aman-fungsi): object-src 'none', base-uri/frame-
-  ancestors/form-action 'self'; script & style masih mengizinkan
-  'unsafe-inline'/'unsafe-eval' + wildcard https: agar engine TFM
-  (inline script/style, CDN jsdelivr/cdnjs) dan Roundcube tidak rusak.
-- TODO evaluasi: ketatkan bertahap — nonce untuk inline, host CDN
-  eksplisit, hapus unsafe-eval. Uji setiap pelonggaran saat upgrade.
+- Versi 2: object-src 'none', base-uri/frame-ancestors/form-action
+  'self', connect-src 'self'; unsafe-eval DIHAPUS; wildcard https:
+  DIGANTI host eksplisit cdn.jsdelivr.net & cdncdnjs.cloudflare.com.
+
+**Respons per temuan scanner (versi 2):**
+
+| Temuan | Status | Justifikasi |
+|--------|--------|-------------|
+| `'unsafe-eval'` di script-src | ✅ FIXED v2 | dihapus total |
+| `https:` wildcard | ✅ FIXED v2 | hanya jsdelivr + cdnjs |
+| `'unsafe-inline'` script/style | ⚠️ ACCEPTED | TFM & Roundcube memakai inline script/style intensif; penghapusan butuh refaktor nonce besar (evaluasi lanjutan). Mitigasi: token CSRF rotasi, honeypot, throttle |
+| `'self'` + user uploads (JSONP/JS) | ⚠️ MITIGATED | (1) X-Content-Type-Options: nosniff aktif; (2) akun klien READONLY — tak bisa upload; (3) staf tepercaya; (4) tidak ada endpoint JSONP; (5) ekstensi upload bisa dibatasi via config opts |
 
 ### security.txt [RFC 9116 — terpasang 2026-08-23]
 - [x] `/.well-known/security.txt` via Alias Apache
