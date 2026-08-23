@@ -384,10 +384,8 @@ if ($use_auth) {
         unset($_SESSION[FM_SESSION_ID]['login_fields']);
         $fmu = isset($lfNames['usr']) ? $lfNames['usr'] : '';
         $fmp = isset($lfNames['pwd']) ? $lfNames['pwd'] : '';
-        $fmt = isset($lfNames['tok']) ? $lfNames['tok'] : '';
         $postU = ($fmu !== '' && isset($_POST[$fmu])) ? trim((string) $_POST[$fmu]) : null;
         $postP = ($fmp !== '' && isset($_POST[$fmp])) ? (string) $_POST[$fmp] : null;
-        $postT = ($fmt !== '' && isset($_POST[$fmt])) ? (string) $_POST[$fmt] : null;
 
         if (!empty($_POST['fm_usr']) || !empty($_POST['fm_pwd'])) {
             // HONEYPOT terisi -> bot. Diam-diam buang waktunya, tanpa
@@ -395,7 +393,7 @@ if ($use_auth) {
             sleep(3);
             fm_redirect(FM_SELF_URL);
         }
-        if ($postU === null || $postP === null || $postT === null) {
+        if ($postU === null || $postP === null) {
             // halaman usang / field tak dikenal -> minta render ulang
             fm_set_msg(lng('Login failed. Invalid username or password'), 'error');
             fm_redirect(FM_SELF_URL);
@@ -413,7 +411,7 @@ if ($use_auth) {
         }
         sleep(1);
         if (function_exists('password_verify')) {
-            if (isset($auth_users[$postU]) && $postP !== '' && password_verify($postP, $auth_users[$postU]) && verifyToken($postT)) {
+            if (isset($auth_users[$postU]) && $postP !== '' && password_verify($postP, $auth_users[$postU]) && verifyToken($_POST['token'])) {
                 // [LOCAL PATCH rc-filemanager] anti session fixation
                 session_regenerate_id(true);
                 $_SESSION[FM_SESSION_ID]['logged'] = $postU;
@@ -497,7 +495,7 @@ if ($use_auth) {
                                     <div class="mb-3">
                                         <?php fm_show_message(); ?>
                                     </div>
-                                    <input type="hidden" name="<?php echo $lf['tok']; ?>" value="<?php echo htmlentities($_SESSION['token']); ?>" />
+                                    <input type="hidden" name="token" value="<?php echo htmlentities($_SESSION['token']); ?>" />
                                     <div class="mb-3">
                                         <button type="submit" class="btn btn-success btn-block w-100 mt-4" role="button">
                                             <?php echo lng('Login'); ?>
@@ -3844,13 +3842,14 @@ function fm_login_field($prefix)
     return $prefix . substr(bin2hex(random_bytes(9)), 0, 16);
 }
 
-/** Simpan pemetaan nama field utk POST berikutnya; kembalikan pemetaan. */
+/** Simpan pemetaan nama field utk POST berikutnya; kembalikan pemetaan.
+ *  Token CSRF TIDAK ikut dirandom — namanya tetap 'token' (praktik
+ *  standar); yang dirotasi per render adalah NILAI-nya. */
 function fm_login_fields_generate()
 {
     $f = array(
         'usr' => fm_login_field('u'),
         'pwd' => fm_login_field('p'),
-        'tok' => fm_login_field('t'), // nama field CSRF ikut acak
     );
     $_SESSION[FM_SESSION_ID]['login_fields'] = $f;
     return $f;
