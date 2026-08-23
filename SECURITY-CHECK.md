@@ -57,6 +57,16 @@ Status              : P1 TERPASANG · P2/P3 MENUNGGU EVALUASI
 - Catatan: header pada respons HTTP diabaikan browser (sesuai spec) —
   aman bagi akses http internal yang belum pernah buka via https.
 
+### Content-Security-Policy [P2 terpasang 2026-08-23 — respons scanner]
+- [x] Via Apache global (`conf-enabled/csp.conf`; sumber di repo:
+      `gateways/apache-csp.conf`).
+- Kebijakan v1 (aman-fungsi): object-src 'none', base-uri/frame-
+  ancestors/form-action 'self'; script & style masih mengizinkan
+  'unsafe-inline'/'unsafe-eval' + wildcard https: agar engine TFM
+  (inline script/style, CDN jsdelivr/cdnjs) dan Roundcube tidak rusak.
+- TODO evaluasi: ketatkan bertahap — nonce untuk inline, host CDN
+  eksplisit, hapus unsafe-eval. Uji setiap pelonggaran saat upgrade.
+
 ### CRUD Kelola Klien (create/edit/delete)
 - [x] CSRF token sesi (`_token`, diverifikasi `hash_equals`)
 - [x] Gate manager (`is_manager()`)
