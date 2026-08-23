@@ -23,12 +23,11 @@ define('APP_TITLE', 'Tiny File Manager');
 $use_auth = true;
 
 // Login user name and password
-// Users: array('Username' => 'Password', 'Username2' => 'Password2', ...)
-// Generate secure password hash - https://tinyfilemanager.github.io/docs/pwd.html
-$auth_users = array(
-    'admin' => '$2y$10$/K.hjNr84lLNDt8fTXjoI.DBp6PpeyoJ.mGwrrLuCZfAwfSAGqhOW', //admin@123
-    'user' => '$2y$10$Fg6Dz8oH9fPoZ2jJan5tZuv6Z4Kp7avtQ9bDfrdRntXtPeiMAZyGO' //12345
-);
+// [LOCAL PATCH rc-filemanager] kredensial default TFM (admin@123 /
+// user / 12345) DIHAPUS — mode klien mengambil kredensial dari tabel
+// filemanager_clients via lib/config.php; mode staf memakai SSO
+// Roundcube (FM_EMBED, auth internal nonaktif).
+$auth_users = array();
 
 // Readonly users
 // e.g. array('users', 'guest', ...)
@@ -1889,8 +1888,12 @@ if (isset($_GET['view'])) {
         <div class="col-12">
             <ul class="list-group w-50 my-3" data-bs-theme="<?php echo FM_THEME; ?>">
                 <li class="list-group-item active" aria-current="true"><strong><?php echo lng($view_title) ?>:</strong> <?php echo fm_enc(fm_convert_win($file)) ?></li>
-                <?php $display_path = fm_get_display_path($file_path); ?>
+                <?php $display_path = fm_get_display_path($file_path);
+                    // [LOCAL PATCH rc-filemanager] Full Path hanya staf —
+                    // klien tidak boleh melihat path internal mount
+                    if (defined('FILEMANAGER_STAFF')): ?>
                 <li class="list-group-item"><strong><?php echo $display_path['label']; ?>:</strong> <?php echo $display_path['path']; ?></li>
+                <?php endif; ?>
                 <li class="list-group-item"><strong><?php echo lng('Date Modified') ?>:</strong> <?php echo date(FM_DATETIME_FORMAT, filemtime($file_path)); ?></li>
                 <li class="list-group-item"><strong><?php echo lng('File size') ?>:</strong> <?php echo ($filesize_raw <= 1000) ? "$filesize_raw bytes" : $filesize; ?></li>
                 <li class="list-group-item"><strong><?php echo lng('MIME-type') ?>:</strong> <?php echo $mime_type ?></li>
@@ -1939,7 +1942,9 @@ if (isset($_GET['view'])) {
                 <?php if (!FM_READONLY): ?>
                     <a class="fw-bold btn btn-outline-primary" title="<?php echo lng('Delete') ?>" href="?p=<?php echo urlencode(FM_PATH) ?>&amp;del=<?php echo urlencode($file) ?>" onclick="confirmDialog(event, 1209, '<?php echo lng('Delete') . ' ' . lng('File'); ?>','<?php echo urlencode($file); ?>', this.href);"> <i class="fa fa-trash"></i> Delete</a>
                 <?php endif; ?>
+                <?php if (defined('FILEMANAGER_STAFF')): // [LOCAL PATCH rc-filemanager] klien: tanpa tombol Open (download saja) ?>
                 <a class="fw-bold btn btn-outline-primary" href="<?php echo fm_enc($file_url) ?>" target="_blank"><i class="fa fa-external-link-square"></i> <?php echo lng('Open') ?></a></b>
+                <?php endif; ?>
                 <?php
                 // ZIP actions
                 if (!FM_READONLY && ($is_zip || $is_gzip) && $filenames !== false) {
@@ -2166,8 +2171,11 @@ if (isset($_GET['chmod']) && !FM_READONLY && !FM_IS_WIN) {
             </h6>
             <div class="card-body">
                 <p class="card-text">
-                    <?php $display_path = fm_get_display_path($file_path); ?>
+                    <?php $display_path = fm_get_display_path($file_path);
+                    // [LOCAL PATCH rc-filemanager] sama: path hanya staf
+                    if (defined('FILEMANAGER_STAFF')): ?>
                     <?php echo $display_path['label']; ?>: <?php echo $display_path['path']; ?><br>
+                    <?php endif; ?>
                 </p>
                 <form action="" method="post">
                     <input type="hidden" name="p" value="<?php echo fm_enc(FM_PATH) ?>">
@@ -4072,7 +4080,10 @@ function fm_show_nav_path($path)
             }
             $root_url .= $sep . implode($sep, $array);
         }
-        echo '<div class="breadcrumb col-xs-6 col-sm-5">' . $root_url . $editFile . '</div>';
+        // [LOCAL PATCH rc-filemanager] tanpa kolom Bootstrap —
+        // breadcrumb memakai lebar penuh (sebelumnya col-xs-6 col-sm-5,
+        // terlalu sempit untuk path panjang di sisi klien)
+        echo '<div class="breadcrumb w-100">' . $root_url . $editFile . '</div>';
         ?>
     </div>
     <!-- [/LOCAL PATCH rc-filemanager] -->
