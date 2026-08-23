@@ -1,6 +1,10 @@
 # Konfigurasi asli + credential — jangan pernah di-commit
 config.inc.php
 
+# Logo khusus perusahaan (branding privat) — default logo.png tetap
+# di-commit sebagai fallback instalasi baru
+skins/elastic/images/logo-ciptamasjaya.png
+
 # File sistem / cadangan lokal
 *.bak
 *.swp

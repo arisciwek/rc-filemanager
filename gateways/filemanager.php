@@ -117,6 +117,9 @@ if (!is_readable($plugin_dir . '/lib/tinyfilemanager.php')) {
 define('FILEMANAGER_OPTS', (!empty($fmcfg['opts']) && is_array($fmcfg['opts']))
     ? $fmcfg['opts']
     : []);
+// [LOCAL PATCH rc-filemanager] label & logo halaman login klien
+define('FILEMANAGER_CLIENT_LOGIN', (!empty($fmcfg['client_login'])
+    && is_array($fmcfg['client_login'])) ? $fmcfg['client_login'] : []);
 define('FILEMANAGER_CLIENTS_FILE', $plugin_dir . '/config.inc.php');
 define('FILEMANAGER_CLIENTS_BASE', rtrim(!empty($fmcfg['staff_base'])
     ? (string) $fmcfg['staff_base']

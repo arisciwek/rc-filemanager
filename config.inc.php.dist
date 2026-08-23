@@ -56,6 +56,20 @@ $config['client_home_default'] = '';
 
 /*
  * ------------------------------------------------------------------
+ * HALAMAN LOGIN KLIEN — label & logo (semua opsional).
+ * logo : nama file gambar di folder plugin images/ — kosongkan untuk
+ *        memakai bawaan client-logo-default.svg. File logo khusus
+ *        perusahaan TIDAK di-commit (lihat .gitignore).
+ * ------------------------------------------------------------------
+ */
+$config['client_login'] = [
+    'title'   => '',
+    'welcome' => '',
+    'logo'    => 'skins/elastic/images/logo.png',
+];
+
+/*
+ * ------------------------------------------------------------------
  * KLIEN — tanpa akun Roundcube. Login via form bawaan TinyFileManager
  * di https://<domain>/filemanager.php, chroot ke 'path' masing-masing.
  * Klien tidak dapat melihat folder klien lain maupun naik ke atas path-nya.
