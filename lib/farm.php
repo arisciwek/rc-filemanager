@@ -62,8 +62,19 @@ class fm_farm
             return false;
         }
 
-        if (!is_dir($farm) && !@mkdir($farm, 2770, true)) {
+        // Umask PHP-FPM + lapisan Samba/ACL dapat memotong bit read dari
+        // mkdir (lihat FINDING.md) — tanpa read, TFM melihat farm kosong.
+        // Rumus aman: buang ACL extended yang malformed, lalu permission
+        // UNIX murni 2770 milik www-data.
+        if (!is_dir($farm) && !@mkdir($farm, 02770, true) && !is_dir($farm)) {
             return false;
+        }
+        @exec('setfacl -b ' . escapeshellarg($farm) . ' 2>/dev/null');
+        @chmod($farm, 02770);
+        $clientsDir = dirname($farm);
+        if (is_dir($clientsDir)) {
+            @exec('setfacl -b ' . escapeshellarg($clientsDir) . ' 2>/dev/null');
+            @chmod($clientsDir, 02770);
         }
 
         $wanted = [];

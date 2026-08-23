@@ -787,7 +787,7 @@ class filemanager extends rcube_plugin
                 }
                 $target = $realHome . '/' . $rel . '/PDF';
                 if (!is_dir($target)) {
-                    @mkdir($target, 2770, true); // auto-create PDF
+                    @mkdir($target, 02770, true); // auto-create PDF
                 }
                 $r = realpath($target);
                 if ($r !== false && is_dir($r)) {

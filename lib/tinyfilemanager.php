@@ -2221,7 +2221,7 @@ $all_files_size = 0;
                     <td data-sort=<?php echo fm_convert_win(fm_enc($f)) ?>>
                         <div class="filename">
                             <a href="?p=<?php echo urlencode(trim(FM_PATH . '/' . $f, '/')) ?>"><i class="<?php echo $img ?>"></i> <?php echo fm_convert_win(fm_enc($f)) ?></a>
-                            <?php echo ($is_link ? ' &rarr; <i>' . readlink($path . '/' . $f) . '</i>' : '') ?>
+                            <?php // [LOCAL PATCH rc-filemanager] sembunyikan target symlink (path internal mount tidak untuk klien) ?>
                         </div>
                     </td>
                     <td data-order="a-<?php echo str_pad($filesize_raw, 18, "0", STR_PAD_LEFT); ?>">
@@ -2300,7 +2300,7 @@ $all_files_size = 0;
                                     <?php endif; ?>
                                     <i class="<?php echo $img ?>"></i> <?php echo fm_convert_win(fm_enc($f)) ?>
                                     </a>
-                                    <?php echo ($is_link ? ' &rarr; <i>' . readlink($path . '/' . $f) . '</i>' : '') ?>
+                                    <?php // [LOCAL PATCH rc-filemanager] sembunyikan target symlink (path internal mount tidak untuk klien) ?>
                         </div>
                     </td>
                     <td data-order="b-<?php echo str_pad($filesize_raw, 18, "0", STR_PAD_LEFT); ?>"><span title="<?php printf('%s bytes', $filesize_raw) ?>">
@@ -3746,6 +3746,155 @@ class FM_Config
  * Show nav block
  * @param string $path
  */
+// [LOCAL PATCH rc-filemanager] ============================================
+// Sidebar klien: daftar folder share level-1 dari chroot, plus nama
+// perusahaan sebagai identitas. Sub-folder DI BAWAH share aktif ikut
+// ditampilkan (ekspansi mengikuti jalur yang sedang dibuka) — beberapa
+// klien mengelompokkan data dalam sub-folder di bawah PDF.
+function fm_client_company_name()
+{
+    $u = isset($_SESSION[FM_SESSION_ID]['logged'])
+        ? $_SESSION[FM_SESSION_ID]['logged'] : '';
+    $names = isset($GLOBALS['fm_client_home_names'])
+        ? $GLOBALS['fm_client_home_names'] : [];
+    return ($u !== '' && isset($names[$u])) ? $names[$u] : '';
+}
+
+/** Satu item sidebar (dengan indentasi per kedalaman). */
+function fm_cl_item_html($label, $rel, $depth, $active)
+{
+    $cls = 'fm-cl-item' . ($depth ? ' fm-cl-sub' : '')
+        . ($active ? ' active' : '');
+    $pad = $depth ? ' style="padding-left:' . round(.9 * $depth + 1, 2) . 'rem"'
+        : '';
+    return '<a class="' . $cls . '"' . $pad . ' href="?p='
+        . urlencode($rel) . '"><i class="fa fa-folder" aria-hidden="true">'
+        . '</i><span>' . fm_enc($label) . '</span></a>';
+}
+
+/**
+ * Render anak-anak direktori $absDir (rel: path dari chroot).
+ * Hanya cabang yang dilalui path aktif ($cur) yang diekspansi.
+ */
+function fm_cl_render_level($absDir, $relPath, $cur, $depth)
+{
+    $items = @scandir($absDir);
+    if (!$items) {
+        return;
+    }
+    $subs = array();
+    foreach ($items as $s) {
+        if ($s === '.' || $s === '..' || $s[0] === '.') {
+            continue;
+        }
+        if (is_dir($absDir . '/' . $s)) {
+            $subs[] = $s;
+        }
+    }
+    if (!count($subs)) {
+        return;
+    }
+    natcasesort($subs);
+    foreach ($subs as $s) {
+        $childRel = ltrim($relPath . '/' . $s, '/');
+        $active   = ($cur === $childRel);
+        $expand   = ($active || strpos($cur . '/', $childRel . '/') === 0);
+        echo fm_cl_item_html($s, $childRel, $depth, $active);
+        if ($expand) {
+            fm_cl_render_level($absDir . '/' . $s, $childRel, $cur, $depth + 1);
+        }
+    }
+}
+
+function fm_client_sidebar_render()
+{
+    if (!isset($_SESSION[FM_SESSION_ID]['logged']) || !defined('FM_ROOT_PATH')) {
+        return;
+    }
+    $items = @scandir(FM_ROOT_PATH);
+    if (!$items) {
+        return;
+    }
+    $dirs = array();
+    foreach ($items as $f) {
+        if ($f === '.' || $f === '..' || substr($f, 0, 1) === '.') {
+            continue;
+        }
+        if (is_dir(FM_ROOT_PATH . '/' . $f)) {
+            $dirs[] = $f;
+        }
+    }
+    if (!count($dirs)) {
+        return;
+    }
+    natcasesort($dirs);
+    $cur = trim(FM_PATH, '/');
+    $company = fm_client_company_name();
+    ?>
+    <!-- [LOCAL PATCH rc-filemanager] sidebar klien -->
+    <style>
+        .fm-cl-sidebar{position:fixed;top:56px;left:0;bottom:0;width:230px;
+            overflow-y:auto;overscroll-behavior:contain;
+            background:var(--bs-body-bg);z-index:1030;
+            border-right:1px solid var(--bs-border-color);padding:.75rem;
+            display:flex;flex-direction:column;}
+        .fm-cl-logout{margin-top:auto;display:flex;align-items:center;gap:.5rem;
+            padding:.45rem .5rem;border-radius:.35rem;color:#dc3545;
+            border-top:1px solid var(--bs-border-color);}
+        .fm-cl-logout:hover{background:rgba(220,53,69,.1);}
+        /* scrollbar selalu terlihat — klien bisa punya folder bulanan
+         * sejak bertahun-tahun (mis. 2019-sekarang = 80+ item) */
+        .fm-cl-sidebar::-webkit-scrollbar{width:8px;}
+        .fm-cl-sidebar::-webkit-scrollbar-track{background:transparent;}
+        .fm-cl-sidebar::-webkit-scrollbar-thumb{background:#9ea8b2;
+            border-radius:4px;}
+        .fm-cl-sidebar::-webkit-scrollbar-thumb:hover{background:#7c8894;}
+        body.navbar-normal .fm-cl-sidebar{top:0;}
+        .fm-cl-company{font-weight:700;font-size:.95rem;padding:.25rem .5rem .75rem;
+            border-bottom:1px solid var(--bs-border-color);margin-bottom:.5rem;
+            white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+        .fm-cl-sidebar nav{display:flex;flex-direction:column;gap:.15rem;
+            flex:1 1 auto;min-height:0;overflow-y:auto;}
+        .fm-cl-item{display:flex;align-items:center;gap:.5rem;padding:.4rem .5rem;
+            border-radius:.35rem;color:var(--bs-body-color);}
+        .fm-cl-item:hover{background:var(--bs-tertiary-bg);}
+        .fm-cl-item.active{background:var(--bs-primary-bg-subtle);font-weight:600;}
+        .fm-cl-item.fm-cl-sub{font-size:.92em;}
+        body.fm-has-sidebar #wrapper{padding-left:246px;}
+        @media(max-width:991.98px){
+            .fm-cl-sidebar{position:static;width:auto;height:auto;display:flex;
+                align-items:center;overflow-x:auto;border-right:0;
+                border-bottom:1px solid var(--bs-border-color);}
+            .fm-cl-company{border-bottom:0;margin:0 .75rem 0 0;flex:none;}
+            .fm-cl-sidebar nav{flex-direction:row;}
+            body.fm-has-sidebar #wrapper{padding-left:0;}
+        }
+    </style>
+    <aside class="fm-cl-sidebar" data-bs-theme="<?php echo FM_THEME; ?>">
+        <div class="fm-cl-company" title=""><?php echo fm_enc($company); ?></div>
+        <nav aria-label="Folder share">
+            <?php foreach ($dirs as $d) {
+                $active = ($cur === $d);
+                // ekspansi: bila path aktif berada DI DALAM share ini,
+                // tampilkan sub-folder level demi level sepanjang jalur
+                echo fm_cl_item_html($d, $d, 0, $active);
+                if (!$active && strpos($cur . '/', $d . '/') === 0) {
+                    fm_cl_render_level(
+                        FM_ROOT_PATH . '/' . $d, $d, $cur, 1
+                    );
+                }
+            } ?>
+        </nav>
+        <!-- [LOCAL PATCH rc-filemanager] logout menonjol di dasar sidebar -->
+        <a class="fm-cl-logout" href="?logout=1">
+            <i class="fa fa-sign-out" aria-hidden="true"></i>
+            <span><?php echo fm_enc(lng('Logout')); ?></span>
+        </a>
+    </aside>
+    <?php
+}
+// [/LOCAL PATCH rc-filemanager] ===========================================
+
 function fm_show_nav_path($path)
 {
     global $lang, $sticky_navbar, $editFile;
@@ -3759,7 +3908,14 @@ function fm_show_nav_path($path)
     <div class="fm-pathbar d-flex align-items-center flex-wrap gap-1 px-3 py-2 bg-body-tertiary border-bottom" data-bs-theme="<?php echo FM_THEME; ?>">
         <?php
         $path = fm_clean_path($path);
-        $root_url = "<a href='?p='><i class='fa fa-home' aria-hidden='true' title='" . FM_ROOT_PATH . "'></i></a>";
+        // [LOCAL PATCH rc-filemanager] HOME breadcrumb = nama perusahaan;
+        // JANGAN pernah menampilkan FM_ROOT_PATH (path internal mount)
+        $company = fm_client_company_name();
+        $root_url = "<a href='?p='>"
+            . ($company !== ''
+                ? '<i class="fa fa-home" aria-hidden="true"></i> ' . fm_enc($company)
+                : "<i class='fa fa-home' aria-hidden='true'></i>")
+            . '</a>';
         $sep = '<i class="bread-crumb"> / </i>';
         if ($path != '') {
             $exploded = explode('/', $path);
@@ -4746,7 +4902,15 @@ function fm_show_header_login()
         <?php endif; ?>
     </head>
 
-    <body class="<?php echo (FM_THEME == "dark") ? 'theme-dark' : ''; ?> <?php echo $isStickyNavBar; ?>">
+    <body class="<?php echo (FM_THEME == "dark") ? 'theme-dark' : ''; ?> <?php echo $isStickyNavBar; ?><?php
+        // [LOCAL PATCH rc-filemanager] penanda utk layout sidebar klien
+        echo isset($_SESSION[FM_SESSION_ID]['logged']) ? ' fm-has-sidebar' : ''; ?>">
+        <?php
+        // [LOCAL PATCH rc-filemanager] sidebar klien (folder share)
+        if (isset($_SESSION[FM_SESSION_ID]['logged'])) {
+            fm_client_sidebar_render();
+        }
+        ?>
         <div id="wrapper" class="container-fluid">
             <!-- New Item creation -->
             <div class="modal fade" id="createNewItem" tabindex="-1" role="dialog" data-bs-backdrop="static" data-bs-keyboard="false" aria-labelledby="newItemModalLabel" aria-hidden="true" data-bs-theme="<?php echo FM_THEME; ?>">

@@ -81,6 +81,10 @@ elseif (defined('FILEMANAGER_CLIENTS_FILE')) {
         if ($_user === '' || empty($_row['hash'])) {
             continue;
         }
+        // [LOCAL PATCH rc-filemanager] nama perusahaan (basename home)
+        // untuk sidebar & breadcrumb sisi klien
+        $GLOBALS['fm_client_home_names'][$_user] =
+            basename(rtrim((string) $_row['home'], '/'));
         $_paths = json_decode((string) $_row['paths'], true);
         if (!is_array($_paths) || !count($_paths)) {
             continue;
@@ -89,8 +93,9 @@ elseif (defined('FILEMANAGER_CLIENTS_FILE')) {
         if ($_farm === null) {
             continue;
         }
-        if (!is_dir($_farm)) {
-            // self-heal: farm hilang (mis. dibersihkan manual) — bangun ulang
+        // self-heal juga saat folder ADA tapi TIDAK TERBACA (jejak umask
+        // PHP-FPM memotong bit read pada mkdir) — build() kini chmod ulang
+        if (!is_dir($_farm) || !is_readable($_farm)) {
             @fm_farm::build($_user, (string) $_row['home'], $_paths, $_base);
         }
         if (!is_dir($_farm)) {
