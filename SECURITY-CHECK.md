@@ -67,6 +67,13 @@ Status              : P1 TERPASANG · P2/P3 MENUNGGU EVALUASI
 - TODO evaluasi: ketatkan bertahap — nonce untuk inline, host CDN
   eksplisit, hapus unsafe-eval. Uji setiap pelonggaran saat upgrade.
 
+### security.txt [RFC 9116 — terpasang 2026-08-23]
+- [x] `/.well-known/security.txt` via Alias Apache
+      (`conf-enabled/security-txt.conf`; file di
+      `public_html/.well-known/`).
+- Isi: Contact, Expires (+1 tahun), Preferred-Languages, Canonical.
+- **Periksa/ubah Contact** ke email/telp keamanan yang benar.
+
 ### CRUD Kelola Klien (create/edit/delete)
 - [x] CSRF token sesi (`_token`, diverifikasi `hash_equals`)
 - [x] Gate manager (`is_manager()`)
