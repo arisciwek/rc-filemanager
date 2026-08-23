@@ -54,28 +54,27 @@ filemanager/
     ├── images/filemanager.png   # Ikon menu 24x24
     └── templates/filemanager.html # Layout Elastic 3 kolom + iframe gateway
 
-public_html/filemanager.php      # GATEWAY STAFF (di luar repo) — verifikasi
-                                 # sesi Roundcube; anonim di-redirect ke
-                                 # ?_task=filemanager
-public_html/filemanager-client.php # ENTRY KLIEN (di luar repo) — selalu mode
-                                   # klien, form login TFM
+public_html/filemanager.php      # GATEWAY SATU PINTU (di luar repo):
+                                 # sesi Roundcube valid -> mode staff SSO;
+                                 # anonim -> mode klien (form login TFM)
 ```
 
 ## Cara Kerja
 
 1. Staff login Roundcube → klik tombol **Berkas** pada taskmenu (`#taskmenu`).
 2. Task `filemanager` merender template Elastic tiga kolom; iframe memuat
-   `/filemanager.php` (gateway staff) via URL absolut `scheme://host/...` —
+   `/filemanager.php` (gateway) via URL absolut `scheme://host/...` —
    penting agar tidak ditulis-ulang `fix_paths()` Roundcube menjadi
    `/skins/elastic/...`.
-3. Gateway staff:
-   - Sesi valid → `FM_EMBED` aktif → TFM jalan **tanpa login**, chroot ke
-     folder staff (folder harus sudah ada/mounted; jika tidak → 403).
-   - Tanpa sesi → redirect ke `/?_task=filemanager`.
-4. Klien membuka `/filemanager-client.php`: engine berjalan dengan auth
-   bawaan aktif → form login → chroot via `$directories_users`.
-5. Kredensial klien disimpan di `config.inc.php` (**di luar DocumentRoot**
-   karena secure layout — tidak dilayani web server).
+3. Gateway:
+   - Sesi Roundcube valid → `FM_EMBED` aktif → TFM jalan **tanpa login**,
+     chroot ke folder staff (folder harus sudah ada/mounted; jika tidak
+     → 403).
+   - Tanpa sesi → mode klien: form login TFM → chroot via
+     `$directories_users` (farm `.clients/<username>`).
+4. Kredensial klien disimpan di tabel MySQL `filemanager_clients`
+   (**di luar DocumentRoot** karena secure layout — tidak dilayani web
+   server).
 
 Detail teknis lanjutan: lihat [PLAN.md](PLAN.md).
 
@@ -123,7 +122,8 @@ hanya tampil untuk staf yang masuk daftar `managers` di config plugin):
    otomatis saat halaman pertama kali dibuka); penyajian multi-folder
    memakai farm symlink `<mount>/.clients/<username>/`.
 4. Menghapus klien di UI = farm symlink ikut dibersihkan.
-5. Bagikan link **`https://<domain>/filemanager-client.php`** ke klien.
+5. Bagikan link **`https://<domain>/filemanager.php`** ke klien —
+   tanpa sesi Roundcube otomatis masuk mode klien.
 
 Gate `managers`: key array di `config.inc.php` plugin; kosong = semua
 staf Roundcube boleh mengelola. Isi email atau local-part untuk membatasi.

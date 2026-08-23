@@ -9,7 +9,8 @@
  * diakses lewat PDO langsung dengan DSN dari config Roundcube sehingga
  * dipakai identik oleh tiga konteks:
  *   1. Gateway staff  public_html/filemanager.php   (bootstrap penuh)
- *   2. Entry klien    public_html/filemanager-client.php (tanpa bootstrap)
+ *   2. Entry klien    public_html/filemanager.php (mode klien, tanpa
+ *                     bootstrap Roundcube)
  *   3. CRUD UI        ?_task=filemanager&_action=clients
  *
  * Kelas ini SENGAJA tidak bergantung pada framework Roundcube maupun
