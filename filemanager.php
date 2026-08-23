@@ -893,6 +893,11 @@ class filemanager extends rcube_plugin
         $err  = null;
 
         if ($val !== '') {
+            // whitelist karakter konservatif (P2 keamanan): huruf, angka,
+            // spasi, titik, koma, dash, strip bawah, kurung, ampersand
+            if (!preg_match('/^[A-Za-z0-9 .(),&_-]+$/', $val)) {
+                $err = 'err_invalid_home';
+            }
             foreach (explode('/', $val) as $seg) {
                 if ($seg === '' || $seg === '.' || $seg === '..'
                     || strpos($seg, '\\') !== false
