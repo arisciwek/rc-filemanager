@@ -193,6 +193,56 @@
         });
     }
 
+    /* ---------------- filter tabel akun klien ---------------- */
+
+    /* Pencarian instan di tabel Kelola Klien: cocokkan username,
+     * nama perusahaan (kolom path), dsb. Tanpa dependensi. */
+    function initTableSearch() {
+        var box = document.getElementById('fm-table-search');
+        var table = document.getElementById('fm-clients-table');
+        var counter = document.getElementById('fm-table-count');
+        if (!box || !table) {
+            return;
+        }
+
+        function rows() {
+            return Array.prototype.slice.call(
+                table.querySelectorAll('tbody tr')
+            );
+        }
+
+        function apply(qs) {
+            qs = qs.toLowerCase();
+            var shown = 0, total = 0;
+            rows().forEach(function (tr) {
+                if (tr.classList.contains('fm-empty-row')) {
+                    return;
+                }
+                total++;
+                var hit = !qs || tr.textContent.toLowerCase().indexOf(qs) !== -1;
+                tr.style.display = hit ? '' : 'none';
+                if (hit) {
+                    shown++;
+                }
+            });
+            if (counter) {
+                counter.textContent = qs === ''
+                    ? total + ' akun'
+                    : shown + ' / ' + total + ' akun';
+            }
+            /* baris "belum ada klien" disembunyikan saat mencari */
+            var emptyRow = table.querySelector('tbody tr.fm-empty-row');
+            if (emptyRow) {
+                emptyRow.style.display = qs === '' ? '' : 'none';
+            }
+        }
+
+        box.addEventListener('input', function () {
+            apply(box.value);
+        });
+        apply('');
+    }
+
     /* ---------------- form Kelola Klien ---------------- */
 
     /* Generate password + konfirmasi hapus — tanpa handler inline agar
@@ -214,9 +264,10 @@
 
         /* default HOME terpilih penuh saat fokus — langsung bisa
          * diketik ulang tanpa hapus manual */
-        if (input) {
-            input.addEventListener('focus', function () {
-                input.select();
+        var homeInput = document.getElementById('fm-home');
+        if (homeInput) {
+            homeInput.addEventListener('focus', function () {
+                homeInput.select();
             });
         }
 
@@ -238,12 +289,56 @@
                 e.preventDefault();
             }
         });
+
+        /* Menu Kelola Klien: URL unik tiap klik + _saved=1 agar form
+         * selalu kosong (Chrome tidak memulihkan isi lama). */
+        document.addEventListener('click', function (e) {
+            var a = e.target.closest('a.fm-clients-nav');
+            if (!a) {
+                return;
+            }
+            e.preventDefault();
+            window.location.href = a.getAttribute('href') + '&_t=' + Date.now();
+        });
+
+        /* Form utama Kelola Klien — hanya ada di halaman tersebut. */
+        var mainForm = document.querySelector('.fm-col-main form.fm-form');
+        if (!mainForm) {
+            return;
+        }
+
+        /* Batal: paksa URL unik agar Chrome tidak memulihkan isi form;
+         * _saved=1 di sisi server membuat form kosong. */
+        var cancel = mainForm.querySelector('a.fm-cancel');
+        if (cancel) {
+            cancel.addEventListener('click', function (e) {
+                e.preventDefault();
+                window.location.href = cancel.getAttribute('href')
+                    + '&_t=' + Date.now();
+            });
+        }
+
+        /* notifikasi field wajib yang kosong saat submit */
+        mainForm.addEventListener('invalid', function (e) {
+            var el = e.target;
+            var lbl = el.id
+                ? mainForm.querySelector('label[for="' + el.id + '"]')
+                : null;
+            var fieldName = lbl ? lbl.textContent.replace(/:?\s*$/, '')
+                : el.name;
+            var msg = '"' + fieldName + '" belum terisi / belum benar'
+                + ' — ' + el.validationMessage;
+            if (window.rcmail && rcmail.display_message) {
+                rcmail.display_message(msg, 'error');
+            }
+        }, true);
     }
 
     function boot() {
 
     initResizer();
     initHomePicker();
+    initTableSearch();
     initClientsForm();
 
     var frame = document.getElementById('filemanager-frame');

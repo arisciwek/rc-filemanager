@@ -38,6 +38,7 @@ $labels['stat_accounts']    = 'Client accounts';
 $labels['stat_shares']      = 'Shared PDF folders';
 $labels['placeholder_company'] = 'Company Name Inc.';
 $labels['placeholder_parent']  = 'e.g. 2026/company-parent';
+$labels['search_accounts']  = 'Search username / company…';
 
 $labels['manageclients']    = 'Manage Clients';
 $labels['clientform_edit']  = 'Editing client';

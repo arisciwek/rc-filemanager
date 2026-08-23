@@ -215,6 +215,21 @@
     padding: .5rem .75rem;
 }
 
+/* pencarian di atas tabel akun */
+.fm-table-tools {
+    display: flex;
+    gap: .75rem;
+    align-items: center;
+    margin-top: 1.25rem;
+    margin-bottom: .35rem;
+}
+
+.fm-table-tools input[type="text"],
+.fm-table-tools .form-control {
+    flex: 0 0 280px;
+    max-width: 280px;
+}
+
 /* kartu kolom samping */
 .fm-side-card {
     padding: .75rem 1rem 1rem;

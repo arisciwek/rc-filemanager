@@ -226,8 +226,8 @@ class filemanager extends rcube_plugin
                 . '<div class="fm-panel fm-panel-shortcuts"><div class="scroller">'
                 . '<ul class="listing" id="filemanager-shortcuts">'
                 . '<li class="selected"><a href="'
-                . rcube::Q('?_task=filemanager&_action=clients')
-                . '"><i class="fa fa-users" aria-hidden="true"></i><span class="inner">'
+                . rcube::Q('?_task=filemanager&_action=clients&amp;_saved=1')
+                . '" class="fm-clients-nav"><i class="fa fa-users" aria-hidden="true"></i><span class="inner">'
                 . rcube::Q($this->gettext('manageclients')) . '</span></a></li>'
                 . '</ul></div></div>'
                 . '</div>';
@@ -271,8 +271,8 @@ class filemanager extends rcube_plugin
 
         // Kelola Klien — hanya untuk manager (DISCUSS.md #5)
         if ($this->is_manager()) {
-            $out .= '<li><a href="' . rcube::Q('?_task=filemanager&_action=clients')
-                . '"><i class="fa fa-users" aria-hidden="true"></i><span class="inner">'
+            $out .= '<li><a href="' . rcube::Q('?_task=filemanager&_action=clients&_saved=1')
+                . '" class="fm-clients-nav"><i class="fa fa-users" aria-hidden="true"></i><span class="inner">'
                 . rcube::Q($this->gettext('manageclients'))
                 . '</span></a></li>';
         }
@@ -590,12 +590,18 @@ class filemanager extends rcube_plugin
         }
 
         $ctx = [
-            'edit' => null, 'u' => '', 'home' => '', 'ro' => false,
+            'edit' => null, 'u' => '', 'home' => '', 'ro' => false, 'p' => '',
             'years' => null, 'checked' => [],
         ];
 
-        // refill hasil submit yang gagal validasi (flash session)
-        if (isset($_SESSION['fm_client_form']) && is_array($_SESSION['fm_client_form'])) {
+        // refill hasil submit yang gagal validasi (flash session).
+        // Setelah simpan/hapus sukses redirect membawa _saved=1: URL jadi
+        // unik (mencegah Chrome memulihkan isi form lama) dan refill
+        // sengaja dilewati agar form bersih untuk input baru.
+        if (rcube_utils::get_input_value('_saved', rcube_utils::INPUT_GET) === '1') {
+            unset($_SESSION['fm_client_form']);
+        } elseif (isset($_SESSION['fm_client_form'])
+            && is_array($_SESSION['fm_client_form'])) {
             $ctx = array_merge($ctx, $_SESSION['fm_client_form']);
             unset($_SESSION['fm_client_form']);
         }
@@ -701,8 +707,10 @@ class filemanager extends rcube_plugin
                 }
             }
             $this->render_clients([
+                // 'p': bawa password ketikan user melewati putaran Pindai
+                // (render di-request yang sama; tak pernah ke DB/log)
                 'edit' => null, 'u' => $u, 'home' => $real, 'ro' => $ro,
-                'years' => $years, 'checked' => $checked,
+                'p' => $pwd, 'years' => $years, 'checked' => $checked,
             ], 'msg_scan_ok');
             return;
         }
@@ -716,6 +724,14 @@ class filemanager extends rcube_plugin
             // huruf kecil/angkat; titik, garis bawah & strip hanya di tengah
             if (!preg_match('/^[a-z0-9](?:[a-z0-9._-]{1,62}[a-z0-9])$/', $u)) {
                 $err = 'err_invalid_user';
+                break;
+            }
+            // unik: tolak bila username sudah dipakai baris LAIN
+            // (create duplikat maupun rename ke nama yang sudah ada);
+            // tanpa ini ON DUPLICATE KEY UPDATE akan menimpa diam-diam.
+            $existing = fm_store::get($u);
+            if ($existing !== null && (string) $existing['username'] !== $cu) {
+                $err = 'err_user_exists';
                 break;
             }
             $old = $cu !== '' ? fm_store::get($cu) : null;
@@ -740,6 +756,13 @@ class filemanager extends rcube_plugin
             if ($realHome === false || !is_dir($realHome)
                 || strpos($realHome . '/', $root . '/') !== 0 || $realHome === $root) {
                 $err = 'err_invalid_home';
+                break;
+            }
+            // unik: 1 akun = 1 perusahaan. Tolak bila perusahaan sudah
+            // dipakai akun LAIN (edit milik sendiri tetap boleh).
+            $byHome = fm_store::get_by_home($realHome);
+            if ($byHome !== null && (string) $byHome['username'] !== $u) {
+                $err = 'err_home_exists';
                 break;
             }
             foreach ($shares as $segRaw) {
@@ -777,7 +800,7 @@ class filemanager extends rcube_plugin
             }
 
             try {
-                fm_store::save([
+                $row = [
                     'username' => $u,
                     'hash'     => $hash,
                     'home'     => $realHome,
@@ -787,10 +810,27 @@ class filemanager extends rcube_plugin
                         JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
                     ),
                     'readonly' => $ro,
-                ], (string) $this->rc->user->get_username());
+                ];
+                $actor  = (string) $this->rc->user->get_username();
+                $rename = ($cu !== '' && $u !== $cu && $old);
+                if ($cu === '' || $rename) {
+                    fm_store::insert($row, $actor);
+                } else {
+                    fm_store::update($cu, $row, $actor);
+                }
                 fm_farm::build($u, $realHome, $reals, $this->client_base());
             } catch (Exception $e) {
-                $err = 'err_db';
+                // pelanggaran UNIQUE di DB (lapisan terakhir) diterjemahkan
+                // menjadi notifikasi yang jelas, bukan error generik
+                $msg = $e->getMessage();
+                if (strpos($msg, 'uq_home') !== false) {
+                    $err = 'err_home_exists';
+                } elseif (strpos($msg, 'PRIMARY') !== false
+                    || strpos($msg, "'username'") !== false) {
+                    $err = 'err_user_exists';
+                } else {
+                    $err = 'err_db';
+                }
                 break;
             }
         } while (false);
@@ -798,7 +838,7 @@ class filemanager extends rcube_plugin
         if ($err !== null) {
             // simpan nilai terisi agar user tidak mengetik ulang semuanya
             $_SESSION['fm_client_form'] = [
-                'u' => $u, 'home' => $home, 'ro' => $ro,
+                'u' => $u, 'home' => $home, 'ro' => $ro, 'p' => $pwd,
                 'years'   => $realHome ? $this->scan_years($realHome) : null,
                 'checked' => array_fill_keys(
                     array_map('trim', array_filter(array_map('strval', $shares))),
@@ -818,7 +858,14 @@ class filemanager extends rcube_plugin
         }
 
         $this->rc->output->show_message('msg_saved', 'confirmation');
-        $this->rc->output->redirect(['_task' => 'filemanager', '_action' => 'clients']);
+        // _saved=1 + timestamp: URL unik -> Chrome tidak memulihkan isi
+        // form lama; server juga memaksa form kosong
+        $this->rc->output->redirect([
+            '_task' => 'filemanager',
+            '_action' => 'clients',
+            '_saved' => '1',
+            '_t' => time(),
+        ]);
         $this->rc->output->send('filemanager.clients');
     }
 
@@ -900,7 +947,12 @@ class filemanager extends rcube_plugin
         }
 
         $this->rc->output->show_message('msg_deleted', 'confirmation');
-        $this->rc->output->redirect(['_task' => 'filemanager', '_action' => 'clients']);
+        $this->rc->output->redirect([
+            '_task' => 'filemanager',
+            '_action' => 'clients',
+            '_saved' => '1',
+            '_t' => time(),
+        ]);
         $this->rc->output->send('filemanager.clients');
     }
 
@@ -979,6 +1031,7 @@ class filemanager extends rcube_plugin
             . '<input type="text" id="fm-home" name="_home"'
             . ' value="' . $q($this->home_display($ctx['home'])) . '"'
             . ' autocomplete="off" spellcheck="false"'
+            . ($edit ? '' : ' required')
             . ' placeholder="' . $g('placeholder_company') . '">'
             . '<button type="button" class="fm-home-toggle btn btn-secondary"'
             . ' aria-label="' . $g('choose_folder') . '" aria-expanded="false" aria-haspopup="listbox"'
@@ -1003,15 +1056,20 @@ class filemanager extends rcube_plugin
             . '<input type="text" id="fm-user" name="_u" size="32" maxlength="64"'
             . ' value="' . $q($ctx['u']) . '"'
             . ' autocomplete="off" spellcheck="false"'
-            . ' pattern="[a-z0-9](?:[a-z0-9._-]{1,62}[a-z0-9])"'
+            // kompatibel regex flag "v" Chrome: '-' di class wajib \-
+            . ' pattern="[a-z0-9][a-z0-9._\\-]{1,62}[a-z0-9]"'
             . ' title="' . $g('username_help') . '"'
             // readonly (bukan disabled): nilai tetap ter-submit saat edit
-            . ($edit ? ' readonly' : '') . '>'
+            . ($edit ? ' readonly' : ' required') . '>'
             . '<div class="fm-hint fm-input-help">' . $g('username_help') . '</div>'
 
             . '<label for="fm-pwd">' . $g('field_password') . '</label>'
             . '<span class="fm-pwd-row">'
-            . '<input type="text" id="fm-pwd" name="_p" size="32" autocomplete="off" spellcheck="false">'
+            . '<input type="text" id="fm-pwd" name="_p" size="32" autocomplete="off"'
+            . ' spellcheck="false"'
+            // create: wajib min 8; edit: opsional (kosong = pakai lama)
+            . ($edit ? '' : ' required minlength="8"')
+            . ' value="' . $q(isset($ctx['p']) ? $ctx['p'] : '') . '">'
             . '<button type="button" id="fm-genpwd" class="btn btn-secondary" aria-label="' . $g('btn_generate') . '">' . $g('btn_generate') . '</button>'
             . '</span>';
 
@@ -1045,7 +1103,8 @@ class filemanager extends rcube_plugin
             . '<button type="submit" name="_do" value="scan" class="btn btn-secondary">' . $g('btn_scan') . '</button>'
             . '<button type="submit" name="_do" value="save" class="btn btn-primary mainaction">'
             . $g('btn_save') . '</button>'
-            . ' <a href="?_task=filemanager&amp;_action=clients" class="btn btn-link">' . $g('btn_cancel') . '</a>'
+            . ' <a href="?_task=filemanager&amp;_action=clients&amp;_saved=1"'
+            . ' class="btn btn-link fm-cancel">' . $g('btn_cancel') . '</a>'
             . '</div></form>';
 
         /* tutup kolom utama, lalu kolom samping dalam baris yang sama */
@@ -1078,7 +1137,14 @@ class filemanager extends rcube_plugin
             . '</div></div>';
 
         /* ---- tabel daftar klien: full width di bawah ---- */
-        $html .= '<div class="fm-card"><table class="fm-clients-table"><thead><tr>'
+        $html .= '<div class="fm-table-tools">'
+            . '<input type="text" id="fm-table-search" class="form-control"'
+            . ' placeholder="' . $g('search_accounts') . '"'
+            . ' aria-label="' . $g('search_accounts') . '"'
+            . ' autocomplete="off" spellcheck="false">'
+            . '<span class="fm-hint" id="fm-table-count" aria-live="polite"></span>'
+            . '</div>'
+            . '<div class="fm-card"><table class="fm-clients-table" id="fm-clients-table"><thead><tr>'
             . '<th>' . $g('field_username') . '</th>'
             . '<th>' . $g('field_home') . '</th>'
             . '<th>' . $g('col_shares') . '</th>'
@@ -1087,8 +1153,8 @@ class filemanager extends rcube_plugin
             . '<th></th></tr></thead><tbody>';
 
         if (!count($rows)) {
-            $html .= '<tr><td colspan="6" class="fm-hint">' . $g('none_configured')
-                . '</td></tr>';
+            $html .= '<tr class="fm-empty-row"><td colspan="6" class="fm-hint">'
+                . $g('none_configured') . '</td></tr>';
         }
         foreach ($rows as $r) {
             $cnt   = count((array) json_decode((string) $r['paths'], true));

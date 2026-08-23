@@ -107,10 +107,38 @@ class fm_store
             updated_at DATETIME     NOT NULL,
             created_by VARCHAR(192) NOT NULL,
             updated_by VARCHAR(192) DEFAULT NULL,
-            PRIMARY KEY (username)
+            PRIMARY KEY (username),
+            UNIQUE KEY uq_home (home)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
 
         self::pdo()->exec($sql);
+        self::ensure_unique_home();
+    }
+
+    /**
+     * Migrasi idempoten: tabel lama belum punya unique home — tambahkan
+     * bila belum ada. Gagal (mis. masih ada data duplikat) dibiarkan ke
+     * caller: lapisan aplikasi tetap memeriksa lebih dulu.
+     */
+    public static function ensure_unique_home()
+    {
+        static $checked = false;
+        if ($checked) {
+            return;
+        }
+        $db  = (string) self::pdo()->query('SELECT DATABASE()')->fetchColumn();
+        $st  = self::pdo()->prepare(
+            'SELECT COUNT(*) FROM information_schema.STATISTICS'
+            . ' WHERE table_schema = ? AND table_name = ?'
+            . " AND index_name = 'uq_home'"
+        );
+        $st->execute([$db, self::TABLE]);
+        if (!(int) $st->fetchColumn()) {
+            self::pdo()->exec(
+                'ALTER TABLE ' . self::TABLE . ' ADD UNIQUE KEY uq_home (home)'
+            );
+        }
+        $checked = true;
     }
 
     /**
@@ -136,24 +164,33 @@ class fm_store
     }
 
     /**
-     * Insert/update satu klien. $row minimal: username, hash, home,
-     * paths (string JSON), readonly; kolom created_at & updated_at
-     * diisi otomatis.
+     * Baris pertama yang memakai $home tertentu (untuk cek unik
+     * perusahaan), atau NULL bila belum ada yang memakai.
      */
-    public static function save(array $row, $actor)
+    public static function get_by_home($home)
+    {
+        $st = self::pdo()->prepare(
+            'SELECT * FROM ' . self::TABLE . ' WHERE home = ? LIMIT 1'
+        );
+        $st->execute([(string) $home]);
+        $row = $st->fetch();
+        return $row === false ? null : $row;
+    }
+
+    /**
+     * Insert akun BARU. Bila username ATAU home sudah terdaftar,
+     * UNIQUE constraint DB melempar exception (ditangani caller menjadi
+     * notifikasi) — TIDAK pernah menimpa baris lama.
+     */
+    public static function insert(array $row, $actor)
     {
         self::ensure_table();
-
         $now = date('Y-m-d H:i:s');
-        $sql = 'INSERT INTO ' . self::TABLE
+        $st = self::pdo()->prepare(
+            'INSERT INTO ' . self::TABLE
             . ' (username, hash, home, paths, readonly, created_at, updated_at, created_by)'
             . ' VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-            . ' ON DUPLICATE KEY UPDATE'
-            . '  hash = VALUES(hash), home = VALUES(home), paths = VALUES(paths),'
-            . '  readonly = VALUES(readonly), updated_at = VALUES(updated_at),'
-            . '  updated_by = VALUES(updated_by)';
-
-        $st = self::pdo()->prepare($sql);
+        );
         return $st->execute([
             (string) $row['username'],
             (string) $row['hash'],
@@ -163,6 +200,31 @@ class fm_store
             $now,
             $now,
             (string) $actor,
+        ]);
+    }
+
+    /**
+     * Update akun yang SUDAH ADA (username tidak berubah).
+     * Baris tak ditemukan -> exception (harusnya tak mungkin: controller
+     * memeriksa lebih dulu).
+     */
+    public static function update($username, array $row, $actor)
+    {
+        self::ensure_table();
+        $now = date('Y-m-d H:i:s');
+        $st = self::pdo()->prepare(
+            'UPDATE ' . self::TABLE
+            . ' SET hash = ?, home = ?, paths = ?, readonly = ?,'
+            . ' updated_at = ?, updated_by = ? WHERE username = ?'
+        );
+        return $st->execute([
+            (string) $row['hash'],
+            (string) $row['home'],
+            (string) $row['paths'],
+            !empty($row['readonly']) ? 1 : 0,
+            $now,
+            (string) $actor,
+            (string) $username,
         ]);
     }
 

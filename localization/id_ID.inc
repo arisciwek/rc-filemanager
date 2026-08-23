@@ -38,6 +38,7 @@ $labels['stat_accounts']    = 'Akun klien';
 $labels['stat_shares']      = 'Folder PDF dishare';
 $labels['placeholder_company'] = 'PT. Nama Perusahaan';
 $labels['placeholder_parent']  = 'mis. 2026/Induk-Perusahaan';
+$labels['search_accounts']  = 'Cari nama pengguna / perusahaan…';
 
 $labels['manageclients']    = 'Kelola Klien';
 $labels['clientform_edit']  = 'Mengubah klien';
@@ -64,6 +65,8 @@ $labels['msg_deleted']      = 'Klien terhapus.';
 $labels['err_notmanager']   = 'Anda tidak berhak mengelola akun klien.';
 $labels['err_token']        = 'Token sesi tidak sah. Silakan ulangi.';
 $labels['err_invalid_user'] = 'Nama pengguna tidak valid (3-64 karakter; huruf kecil & angka, boleh titik/garis bawah/strip di tengah, awal & akhir harus huruf/angka).';
+$labels['err_user_exists']  = 'Nama pengguna sudah dipakai akun lain. Gunakan nama yang berbeda atau ubah akun yang ada.';
+$labels['err_home_exists']  = 'Perusahaan ini sudah dipakai akun lain. Satu perusahaan hanya untuk satu akun.';
 $labels['username_help']    = 'Huruf kecil & angka, 3-64 karakter. Boleh titik, garis bawah, strip — tapi tidak di awal/akhir dan tanpa spasi. Contoh: pt.abc2026';
 $labels['err_invalid_pass'] = 'Kata sandi minimal 8 karakter.';
 $labels['err_invalid_home'] = 'Folder HOME tidak valid atau di luar mount Anda sendiri.';
