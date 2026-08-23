@@ -10,8 +10,8 @@
  * ($directories_users).
  *
  *   <base>/<mount>/.clients/<username>/     <- chroot klien di TFM
- *   ├── 2025 -> /mnt/files/operation/CMJ_2026/1. X/PT. Y/2025/PDF
- *   └── 2026 -> /mnt/files/operation/CMJ_2026/1. X/PT. Y/2026/PDF
+ *   ├── 2025 -> <home>/<tahun-2025>/<bulan>/PDF
+ *   └── 2026 -> <home>/<tahun-2026>/<bulan>/PDF
  *
  * Farm berada DI DALAM mount terkait (anak langsung <base>) karena hanya
  * mount yang writable oleh www-data (2770 nobody:nogroup + ACL).
@@ -49,8 +49,10 @@ class fm_farm
     }
 
     /**
-     * Bangun/perbarui isi farm: symlink per path share. Nama link =
-     * nama folder tahun (dirname dari target). Idempoten — aman dipanggil
+     * Bangun/perbarui isi farm: symlink per path share. $paths adalah
+     * MAP label => target; label dipakai apa adanya sebagai nama link
+     * (mis. "2026-JANUARI"). Kunci numerik (tanpa label) masih didukung:
+     * nama link = nama folder induk target. Idempoten — aman dipanggil
      * ulang kapan pun. Mengembalikan true bila farm siap dipakai.
      */
     public static function build($username, $home, array $paths, $base)
@@ -65,14 +67,22 @@ class fm_farm
         }
 
         $wanted = [];
-        foreach ($paths as $target) {
+        foreach ($paths as $key => $target) {
             $real = realpath((string) $target);
             if ($real === false || !is_dir($real)) {
                 continue;
             }
-            $label = basename(dirname($real));   // '2025', '2026', ...
-            if ($label === '' || isset($wanted[$label])) {
-                $label = basename($real);        // fallback anti-tabrakan
+            if (is_int($key)) {
+                $label = basename(dirname($real)); // '2025', 'MEI', ...
+                if ($label === '' || isset($wanted[$label])) {
+                    $label = basename($real);      // fallback anti-tabrakan
+                }
+            } else {
+                // label eksplisit dari pemanggil; bersihkan sedikit
+                $label = trim(str_replace('/', '-', (string) $key), '.-');
+            }
+            if ($label === '') {
+                continue;
             }
             $wanted[$label] = $real;
         }

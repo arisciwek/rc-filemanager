@@ -23,7 +23,65 @@
  * Sidebar — pohon folder (#filemanager-tree) + pintasan
  * (#filemanager-shortcuts). Markup dibuat tpl_sidebar() (level 1) dan
  * filemanager.js buildNode() (level lebih dalam, hasil AJAX).
+ *
+ * Sidebar dibagi dua panel (.fm-panel) dengan pembatas .fm-resizer;
+ * tiap panel punya scrollbar sendiri dan proporsinya bisa digeser user
+ * (disimpan filemanager.js di localStorage).
  */
+
+#layout-sidebar .fm-side-panels {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0; /* kunci agar overflow per-panel bekerja di flex */
+}
+
+#layout-sidebar .fm-panel {
+    display: flex;
+    flex-direction: column;
+    min-height: 4rem;
+    overflow: hidden;
+}
+
+/* default 60% : 40% (flex-grow), dioverride JS saat user menggeser */
+#layout-sidebar .fm-panel-tree {
+    flex: 6 1 0;
+}
+
+#layout-sidebar .fm-panel-shortcuts {
+    flex: 4 1 0;
+}
+
+#layout-sidebar .fm-panel > .scroller {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+/* pembatas: garis + grip, digeser vertikal */
+#layout-sidebar .fm-resizer {
+    flex: none;
+    height: .5rem;
+    margin: .15rem 0;
+    cursor: row-resize;
+    border-top: 1px solid rgba(0, 0, 0, .12);
+    border-bottom: 1px solid rgba(0, 0, 0, .12);
+    background:
+        radial-gradient(circle, #9ea8b2 1px, transparent 1.5px)
+        center / .9rem .45rem no-repeat;
+    touch-action: none;
+    user-select: none;
+}
+
+#layout-sidebar .fm-resizer:focus-visible {
+    outline: 2px solid #1a3c6e;
+    outline-offset: 2px;
+}
+
+#layout-sidebar .fm-resizer:hover,
+#layout-sidebar .fm-resizer.fm-dragging {
+    background-color: rgba(18, 52, 86, .08);
+}
 
 #layout-sidebar #filemanager-tree,
 #layout-sidebar #filemanager-shortcuts {
@@ -31,8 +89,7 @@
 }
 
 #layout-sidebar #filemanager-shortcuts {
-    border-top: 1px solid rgba(0, 0, 0, .08);
-    margin-top: .25rem;
+    padding-bottom: .5rem;
 }
 
 #filemanager-tree .fm-row {
@@ -54,6 +111,13 @@
     color: inherit;
 }
 
+#filemanager-tree a:focus-visible,
+#filemanager-tree .fm-toggle:focus-visible {
+    outline: 2px solid #1a3c6e;
+    outline-offset: -2px;
+    border-radius: .25rem;
+}
+
 /* panah: angle-right saat tertutup, angle-down saat terbuka */
 #filemanager-tree .fm-node.fm-expanded > .fm-row > .fm-toggle i:before {
     content: "\f107"; /* fa-angle-down */
@@ -70,6 +134,12 @@
 
 @keyframes fm-spin {
     to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #filemanager-tree li.fm-loading > .fm-row > .fm-toggle i {
+        animation: none;
+    }
 }
 
 #filemanager-tree ul.fm-children {
@@ -97,6 +167,153 @@
 }
 
 /* ===== Kelola Klien ===== */
+
+/* jarak konten dari batas #layout-content */
+#layout-content > .scroller.fm-clients {
+    padding: 1rem 1.25rem 1.5rem;
+}
+
+/* dua kolom: utama (form+tabel) | samping (statistik+setelan) */
+.fm-cols {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+}
+
+.fm-col-main {
+    flex: 1 1 auto;
+    min-width: 0; /* agar tabel bisa truncate, tidak melebar paksa */
+}
+
+.fm-col-side {
+    flex: 0 0 349px;
+}
+
+@media (max-width: 900px) {
+    .fm-cols {
+        flex-direction: column;
+    }
+
+    .fm-col-side {
+        flex: auto;
+        width: 100%;
+    }
+}
+
+/* kartu form + kartu tabel */
+.fm-form,
+.fm-card {
+    background: #fff;
+    border: 1px solid #d8dde3;
+    border-radius: .4rem;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .05);
+    padding: 1rem 1.25rem 1.25rem;
+    margin-top: 1rem;
+}
+
+.fm-card {
+    padding: .5rem .75rem;
+}
+
+/* kartu kolom samping */
+.fm-side-card {
+    padding: .75rem 1rem 1rem;
+}
+
+.fm-side-title {
+    font-size: .95rem;
+    margin: .1rem 0 .6rem;
+    font-weight: 700;
+}
+
+.fm-stat-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.fm-stat-list li {
+    display: flex;
+    justify-content: space-between;
+    gap: .75rem;
+    padding: .3rem 0;
+    border-bottom: 1px solid #eef1f4;
+}
+
+.fm-stat-list li:last-child {
+    border-bottom: 0;
+}
+
+/* form pengaturan ringkas di sisi kanan */
+.fm-form-settings label {
+    margin-top: .25rem;
+}
+
+.fm-form-settings input[type="text"] {
+    width: 100%;
+    max-width: none;
+}
+
+/* --- picker folder HOME --- */
+.fm-home-picker {
+    position: relative;
+}
+
+.fm-home-menu {
+    position: absolute;
+    top: calc(100% + .25rem);
+    left: 0;
+    right: 0;
+    z-index: 10;
+    background: #fff;
+    border: 1px solid #c5ccd3;
+    border-radius: .35rem;
+    box-shadow: 0 .35rem .8rem rgba(0, 0, 0, .15);
+    overflow: hidden;
+}
+
+/* pastikan tersembunyi walau skin meng-override [hidden] */
+.fm-home-menu[hidden] {
+    display: none !important;
+}
+
+.fm-home-menu .fm-home-filter {
+    width: 100%;
+    border: 0;
+    border-bottom: 1px solid #e9ecef;
+    border-radius: 0;
+    padding: .5rem .75rem;
+    box-shadow: none;
+}
+
+.fm-home-menu ul {
+    max-height: 40vh;
+    overflow-y: auto;
+    margin: 0;
+    padding: .25rem 0;
+    list-style: none;
+}
+
+.fm-home-menu li > button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: 0;
+    padding: .45rem .75rem;
+    cursor: pointer;
+    color: inherit;
+}
+
+.fm-home-menu li > button:hover {
+    background: rgba(18, 52, 86, .08);
+}
+
+.fm-home-menu li > button:focus-visible {
+    outline: 2px solid #1a3c6e;
+    outline-offset: -2px;
+}
+
 .fm-form label,
 .fm-form legend {
     font-weight: 700;
@@ -133,6 +350,15 @@
     max-width: 640px;
 }
 
+.fm-share-year {
+    margin-top: .5rem;
+}
+
+.fm-share-year > b {
+    display: block;
+    margin-bottom: .15rem;
+}
+
 .fm-badge {
     font-size: .72rem;
     border-radius: 999px;
@@ -164,14 +390,33 @@
     font-size: .9rem;
 }
 
+/* help text di bawah input (jangan mengalir di sampingnya) */
+.fm-input-help {
+    display: block;
+    max-width: 640px;
+    margin-top: .25rem;
+    line-height: 1.35;
+}
+
 .fm-muted {
     color: #adb5bd;
 }
 
 .fm-clients-table {
     width: 100%;
-    margin-top: .75rem;
     border-collapse: collapse;
+    font-variant-numeric: tabular-nums; /* angka & timestamp rata kolom */
+}
+
+/* tombol aksi baris tabel lebih ringkas */
+.fm-clients-table .btn {
+    padding: .1rem .55rem;
+    font-size: .82rem;
+}
+
+#filemanager-tree a,
+#filemanager-tree .fm-toggle {
+    touch-action: manipulation;
 }
 
 .fm-clients-table th,

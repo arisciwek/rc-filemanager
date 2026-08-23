@@ -24,6 +24,7 @@
 class fm_store
 {
     const TABLE = 'filemanager_clients';
+    const TSET  = 'filemanager_settings';
 
     /** @var PDO|null */
     private static $pdo;
@@ -171,5 +172,51 @@ class fm_store
             'DELETE FROM ' . self::TABLE . ' WHERE username = ?'
         );
         return $st->execute([(string) $username]);
+    }
+
+    /* ---------------- pengaturan (key-value) ---------------- */
+
+    /** Buat tabel settings bila belum ada. */
+    public static function ensure_settings_table()
+    {
+        $sql = 'CREATE TABLE IF NOT EXISTS ' . self::TSET . " (
+            key_name   VARCHAR(64)  NOT NULL,
+            value      TEXT         NULL,
+            updated_at DATETIME     NOT NULL,
+            updated_by VARCHAR(192) DEFAULT NULL,
+            PRIMARY KEY (key_name)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
+        self::pdo()->exec($sql);
+    }
+
+    /** Nilai setting atau NULL bila belum pernah disimpan. */
+    public static function get_setting($key)
+    {
+        self::ensure_settings_table();
+        $st = self::pdo()->prepare(
+            'SELECT value FROM ' . self::TSET . ' WHERE key_name = ?'
+        );
+        $st->execute([(string) $key]);
+        $row = $st->fetch();
+        return $row === false ? null : (string) $row['value'];
+    }
+
+    /** Simpan (upsert) satu setting. Nilai '' berarti kembali ke config. */
+    public static function set_setting($key, $value, $actor = '')
+    {
+        self::ensure_settings_table();
+        $now = date('Y-m-d H:i:s');
+        $sql = 'INSERT INTO ' . self::TSET
+            . ' (key_name, value, updated_at, updated_by)'
+            . ' VALUES (?, ?, ?, ?)'
+            . ' ON DUPLICATE KEY UPDATE value = VALUES(value),'
+            . ' updated_at = VALUES(updated_at), updated_by = VALUES(updated_by)';
+        $st = self::pdo()->prepare($sql);
+        return $st->execute([
+            (string) $key,
+            (string) $value,
+            $now,
+            (string) $actor,
+        ]);
     }
 }

@@ -46,6 +46,15 @@ $config['staff_readonly'] = [
 ];
 
 /*
+ * Folder induk nama perusahaan (relatif terhadap mount user).
+ * Picker form menampilkan anak-anak folder ini; input _home cukup
+ * diisi nama perusahaannya saja.
+ * Bisa juga diatur via UI (panel Pengaturan di halaman Kelola Klien);
+ * nilai di sini hanya fallback awal.
+ */
+$config['client_home_default'] = '';
+
+/*
  * ------------------------------------------------------------------
  * KLIEN — tanpa akun Roundcube. Login via form bawaan TinyFileManager
  * di https://<domain>/filemanager.php, chroot ke 'path' masing-masing.
