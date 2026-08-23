@@ -374,8 +374,30 @@ if ($ip_ruleset != 'OFF') {
 if ($use_auth) {
     if (isset($_SESSION[FM_SESSION_ID]['logged'], $auth_users[$_SESSION[FM_SESSION_ID]['logged']])) {
         // Logged
-    } elseif (isset($_POST['fm_usr'], $_POST['fm_pwd'], $_POST['token'])) {
+    } elseif (isset($_POST['token'])) {
         // Logging In
+        // [LOCAL PATCH rc-filemanager] nama field ACAK: baca pemetaan
+        // dari sesi lalu buang (sekali pakai). Field standar fm_usr/
+        // fm_pwd = HONEYPOT untuk bot.
+        $lfNames = isset($_SESSION[FM_SESSION_ID]['login_fields'])
+            ? $_SESSION[FM_SESSION_ID]['login_fields'] : array();
+        unset($_SESSION[FM_SESSION_ID]['login_fields']);
+        $fmu = isset($lfNames['usr']) ? $lfNames['usr'] : '';
+        $fmp = isset($lfNames['pwd']) ? $lfNames['pwd'] : '';
+        $postU = ($fmu !== '' && isset($_POST[$fmu])) ? trim((string) $_POST[$fmu]) : null;
+        $postP = ($fmp !== '' && isset($_POST[$fmp])) ? (string) $_POST[$fmp] : null;
+
+        if (!empty($_POST['fm_usr']) || !empty($_POST['fm_pwd'])) {
+            // HONEYPOT terisi -> bot. Diam-diam buang waktunya, tanpa
+            // pesan & tanpa menyentuh throttle user asli.
+            sleep(3);
+            fm_redirect(FM_SELF_URL);
+        }
+        if ($postU === null || $postP === null) {
+            // halaman usang / field tak dikenal -> minta render ulang
+            fm_set_msg(lng('Login failed. Invalid username or password'), 'error');
+            fm_redirect(FM_SELF_URL);
+        }
         // [LOCAL PATCH rc-filemanager] brute-force throttle:
         // 5 kegagalan -> tolak percobaan selama 10 menit (per sesi)
         $fmFailKey   = 'fm_login_fail';
@@ -389,10 +411,10 @@ if ($use_auth) {
         }
         sleep(1);
         if (function_exists('password_verify')) {
-            if (isset($auth_users[$_POST['fm_usr']]) && isset($_POST['fm_pwd']) && password_verify($_POST['fm_pwd'], $auth_users[$_POST['fm_usr']]) && verifyToken($_POST['token'])) {
+            if (isset($auth_users[$postU]) && $postP !== '' && password_verify($postP, $auth_users[$postU]) && verifyToken($_POST['token'])) {
                 // [LOCAL PATCH rc-filemanager] anti session fixation
                 session_regenerate_id(true);
-                $_SESSION[FM_SESSION_ID]['logged'] = $_POST['fm_usr'];
+                $_SESSION[FM_SESSION_ID]['logged'] = $postU;
                 unset($_SESSION[FM_SESSION_ID][$fmFailKey]);
                 fm_set_msg(lng('You are logged in'));
                 fm_redirect(FM_SELF_URL);
@@ -3794,6 +3816,21 @@ class FM_Config
  * @param string $path
  */
 // [LOCAL PATCH rc-filemanager] ============================================
+// Nama field login ACAK per render — credential stuffing dengan
+// fm_usr/fm_pwd standar tidak akan pernah cocok.
+function fm_login_field($prefix)
+{
+    return $prefix . substr(bin2hex(random_bytes(9)), 0, 16);
+}
+
+/** Simpan pemetaan nama field utk POST berikutnya; kembalikan pemetaan. */
+function fm_login_fields_generate()
+{
+    $f = array('usr' => fm_login_field('u'), 'pwd' => fm_login_field('p'));
+    $_SESSION[FM_SESSION_ID]['login_fields'] = $f;
+    return $f;
+}
+
 // Nama perusahaan klien aktif (dari lib/config.php via $GLOBALS) —
 // dipakai sidebar & breadcrumb sisi klien.
 function fm_client_company_name()
